@@ -70,7 +70,7 @@ UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupn
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 # UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
 # UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
-# UPDATE_PACKAGE "qbittorrent" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
+# UPDATE_PACKAGE "qbittorcrete" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
 UPDATE_PACKAGE "quickfile" "sbwml/luci-app-quickfile" "main"
 
 # UPDATE_PACKAGE "ddns-go" "sirpdboy/luci-app-ddns-go" "main"
@@ -99,7 +99,7 @@ UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
 echo "========================================"
 echo "      EXTRA PACKAGES INSTALL START      "
 echo "========================================"
-UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "" "store"
+# UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "" "store"   # 改由下方 istore feed 提供，避免重复来源
 UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf open-app-filter"
 UPDATE_PACKAGE "harbor-file" "destan19/luci-app-harbor-file" "main" "" "luci-app-harbor-file"
 echo "========================================"
@@ -107,8 +107,19 @@ echo "       EXTRA PACKAGES INSTALL DONE      "
 echo "========================================"
 
 # ===================== linkease（易有云） =====================
-UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master" "" "linkease"
-UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main" "" "luci-app-linkease luci-i18n-linkease-zh-cn"
+# 改由 feeds 提供，可自动带出 linksease-common-bin / luci-lib-linkseasefile 等隐藏依赖
+# 对应 feeds.conf.default 中的 nas / nas_luci / istore 三个源
+# UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master" "" "linkease"
+# UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main" "" "luci-app-linkease luci-i18n-linkease-zh-cn"
+
+# ===================== 安装易有云 / iStore feeds（官方方式） =====================
+# 必须放在 UPDATE_PACKAGE 全部调用之后、UPDATE_VERSION 之前
+echo "====== Install linkease / istore feeds ======"
+./scripts/feeds update nas nas_luci istore
+./scripts/feeds install -a -p nas
+./scripts/feeds install -a -p nas_luci
+./scripts/feeds install -a -p istore
+
 #更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
@@ -125,6 +136,12 @@ UPDATE_VERSION() {
 	for PKG_FILE in $PKG_FILES; do
 		local PKG_REPO=$(grep -Po "PKG_SOURCE_URL:=https://.*github.com/\K[^/]+/[^/]+(?=.*)" $PKG_FILE)
 		local PKG_TAG=$(curl -sL "https://api.github.com/repos/$PKG_REPO/releases" | jq -r "map(select(.prerelease == $PKG_MARK)) | first | .tag_name")
+
+		# 仓库没有 Release tag 时直接跳过，避免把版本号改坏
+		if [ -z "$PKG_TAG" ] || [ "$PKG_TAG" = "null" ]; then
+			echo "$PKG_NAME ($PKG_FILE) has no release tag, skip version update."
+			continue
+		fi
 
 		local OLD_VER=$(grep -Po "PKG_VERSION:=\K.*" "$PKG_FILE")
 		local OLD_URL=$(grep -Po "PKG_SOURCE_URL:=\K.*" "$PKG_FILE")
