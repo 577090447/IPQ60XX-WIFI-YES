@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
 
-# 云编译公用核心（已修改：注入仓库 files/ 并禁止 Settings.sh 覆盖无线配置，athena-led 使用新仓库精确拷贝）
+# 云编译公用核心（已修改：注入仓库 files/ 并禁止 Settings.sh 覆盖无线配置，athena-led 使用本地 package/ 拷贝）
 name: WRT-CORE
 
 on:
@@ -168,27 +168,32 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      # ===== ✅ athena-led 精确拷贝（新仓库，本地化预编译，不重复）=====
+      # ===== ✅ athena-led 本地拉取（仅用本仓库 package/ 下的预编译副本，不访问远程仓库）=====
       - name: Custom Packages
         run: |
+          set -e
           cd ./wrt/package/
 
           # 1. 先跑通用包脚本（Packages.sh 中 athena-led 已注释，避免重复）
           $GITHUB_WORKSPACE/Scripts/Packages.sh
           $GITHUB_WORKSPACE/Scripts/Handles.sh
 
-          # 2. ✅ athena-led 核心包 + luci-app-athena-led 界面包（精确拷贝子目录）
-          echo "=== Installing athena-led from fork repo ==="
-          rm -rf athena-led luci-app-athena-led led-controller-tmp
+          # 2. ✅ athena-led 核心包 + luci-app-athena-led：仅从本仓库 package/ 本地拷贝
+          echo "=== Installing athena-led from local package/ ==="
+          rm -rf athena-led luci-app-athena-led
 
-          git clone --depth=1 --single-branch --branch main \
-            https://github.com/577090447/JDC-AX6600-Athena-LED-Controller.git led-controller-tmp
-
-          # 只拷贝两个包目录，不污染 package/ 根目录
-          cp -rf led-controller-tmp/athena-led ./athena-led/
-          cp -rf led-controller-tmp/luci-app-athena-led ./luci-app-athena-led/
-
-          rm -rf led-controller-tmp
+          SRC_PKG="$GITHUB_WORKSPACE/package"
+          for PKG in athena-led luci-app-athena-led; do
+            if [ -d "$SRC_PKG/$PKG" ]; then
+              echo "Use local $PKG from this repo"
+              cp -rf "$SRC_PKG/$PKG" ./$PKG/
+              rm -rf ./$PKG/.git
+            else
+              echo "ERROR: $SRC_PKG/$PKG not found" >&2
+              echo "Please add $PKG (prebuilt, aarch64_cortex-a53) into your repo package/ first." >&2
+              exit 1
+            fi
+          done
 
           echo "=== athena-led packages installed ==="
           ls -la athena-led/Makefile luci-app-athena-led/Makefile 2>/dev/null || echo "Check files above"
