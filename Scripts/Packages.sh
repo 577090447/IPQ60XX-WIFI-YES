@@ -2,7 +2,14 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
 
-#安装和更新软件包
+# 安装和更新软件包
+#
+# 用法：UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
+#
+# 示例：
+#   UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
+#   UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
+#   这样会把原有的 open-app-filter、luci-app-appfilter、oaf 相关组件删除，不会出现 coremark 错误。
 UPDATE_PACKAGE() {
 	local PKG_NAME=$1
 	local PKG_REPO=$2
@@ -27,7 +34,7 @@ UPDATE_PACKAGE() {
 				echo "Delete directory: $DIR"
 			done <<< "$FOUND_DIRS"
 		else
-			echo "Not fonud directory: $NAME"
+			echo "Not found directory: $NAME"
 		fi
 	done
 
@@ -41,11 +48,7 @@ UPDATE_PACKAGE() {
 	fi
 }
 
-# 调用示例
-# UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
-# UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
-
-# UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
+# ===================== 主题 =====================
 # UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
 # UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
@@ -56,12 +59,14 @@ UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
 # UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
 UPDATE_PACKAGE "vantage" "anothaDev/luci-theme-vantage" "main"
 
+# ===================== 网络 / 代理 =====================
 # UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
 # UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"
 UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
 # UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
 # UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
 
+# ===================== 工具 / 系统 =====================
 # UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
 # UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
 # UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
@@ -91,7 +96,9 @@ UPDATE_PACKAGE "mt5700" "LianXia233/luci-app-mt5700" "main"
 UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
 UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
 UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
+
 # ===================== LED 控制器 (雅典娜 AX6600) =====================
+# 走 yml 本地 package/ 拷贝 + PKG_SOURCE:=none 加固，此处不拉取
 # UPDATE_PACKAGE "athena-led" "577090447/JDC-AX6600-Athena-LED-Controller" "main" "pkg"
 # UPDATE_PACKAGE "luci-app-athena-led" "577090447/JDC-AX6600-Athena-LED-Controller" "main" "pkg"
 
@@ -99,7 +106,8 @@ UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
 echo "========================================"
 echo "      EXTRA PACKAGES INSTALL START      "
 echo "========================================"
-# UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "" "store"   # 改由下方 istore feed 提供，避免重复来源
+# luci-app-store 改由下方 istore feed 提供，避免重复来源
+# UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "" "store"
 UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf open-app-filter"
 UPDATE_PACKAGE "harbor-file" "destan19/luci-app-harbor-file" "main" "" "luci-app-harbor-file"
 echo "========================================"
@@ -120,7 +128,7 @@ echo "====== Install linkease / istore feeds ======"
 ./scripts/feeds install -a -p nas_luci
 ./scripts/feeds install -a -p istore
 
-#更新软件包版本
+# ===================== 版本更新函数 =====================
 UPDATE_VERSION() {
 	local PKG_NAME=$1
 	local PKG_MARK=${2:-false}
@@ -174,3 +182,20 @@ UPDATE_VERSION() {
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
+
+# ===================== 主题固化（aurora） =====================
+sed -i '/luci.main.theme/d' package/emortal/default-settings/files/zzz-default-settings
+sed -i '/mediaurlbase/d' package/emortal/default-settings/files/zzz-default-settings
+
+mkdir -p files/etc/uci-defaults
+cat > files/etc/uci-defaults/99-set-theme <<'EOF'
+#!/bin/sh
+uci set luci.main.theme="aurora"
+uci set luci.main.mediaurlbase="/luci-static/aurora"
+uci commit luci
+rm -rf /tmp/luci-*
+/etc/init.d/uhttpd restart
+exit 0
+EOF
+
+chmod +x files/etc/uci-defaults/*
