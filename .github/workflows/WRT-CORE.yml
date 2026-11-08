@@ -1,38 +1,59 @@
-name: WRT-Core
+# SPDX-License-Identifier: MIT
+# Copyright (C) 2026 VIKINGYFY
+
+#云编译公用核心
+name: WRT-CORE
+
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       WRT_CONFIG:
-        description: 'Config File'
         required: true
-        default: 'IPQ60XX-WIFI-YES'
+        type: string
+      WRT_THEME:
+        required: true
+        type: string
+      WRT_NAME:
+        required: true
+        type: string
+      WRT_SSID:
+        required: true
+        type: string
+      WRT_WORD:
+        required: true
+        type: string
+      WRT_IP:
+        required: true
+        type: string
+      WRT_PW:
+        required: true
+        type: string
       WRT_REPO:
-        description: 'Source Repo'
         required: true
-        default: 'immortalwrt/immortalwrt'
+        type: string
       WRT_BRANCH:
-        description: 'Source Branch'
         required: true
-        default: 'master'
+        type: string
       WRT_SOURCE:
-        description: 'Source Name'
         required: true
-        default: 'immortalwrt'
+        type: string
       WRT_PACKAGE:
-        description: 'Extra Packages'
         required: false
-        default: ''
+        type: string
       WRT_TEST:
-        description: 'Test Build'
-        type: boolean
+        required: false
         default: false
+        type: boolean
 
 env:
+  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
   WRT_CONFIG: ${{inputs.WRT_CONFIG}}
-  WRT_IP: 192.168.1.1
-  WRT_PW: password
-  WRT_SSID: OpenWrt
-  WRT_WORD: none
+  WRT_THEME: ${{inputs.WRT_THEME}}
+  WRT_NAME: ${{inputs.WRT_NAME}}
+  WRT_SSID: ${{inputs.WRT_SSID}}
+  WRT_WORD: ${{inputs.WRT_WORD}}
+  WRT_IP: ${{inputs.WRT_IP}}
+  WRT_PW: ${{inputs.WRT_PW}}
   WRT_REPO: ${{inputs.WRT_REPO}}
   WRT_BRANCH: ${{inputs.WRT_BRANCH}}
   WRT_SOURCE: ${{inputs.WRT_SOURCE}}
@@ -118,13 +139,16 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-          # 【新增】注册集客本地仓库 (src-link)，不干扰其他 feeds
-          echo "src-link local_jike $GITHUB_WORKSPACE/package" >> ./feeds.conf.default
-          
-          # 【新增】提前拷贝根 files（若存在），后续包内 files 会用 cp -n 只追加
-          if [ -d "$GITHUB_WORKSPACE/files" ]; then
-            cp -rn $GITHUB_WORKSPACE/files ./files 2>/dev/null || true
+          # ===== 【新增】集客AC & LED 本地仓库编译（src-link，不联网、不干扰其他 feeds）=====
+          # 说明：$GITHUB_WORKSPACE/package 是你仓库根下的 package/，
+          #       里面已有 athena-led / gecoosac / luci-app-athena-led / luci-app-gecoosac
+          if ! grep -q "^src-link local_jike " ./feeds.conf.default; then
+            echo "src-link local_jike $GITHUB_WORKSPACE/package" >> ./feeds.conf.default
+            echo "registered local_jike feed (src-link)"
+          else
+            echo "local_jike feed already registered, skip."
           fi
+          # ==================================================================================
 
       - name: Check Scripts
         run: |
@@ -158,8 +182,14 @@ jobs:
 
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          # 【新增】强制安装集客本地包（athena-led, gecoosac, luci-app-*）
-          ./scripts/feeds install -a -p local_jike 2>/dev/null || true
+
+          # ===== 【新增】安装本地集客/LED 包（不联网，仅本地索引）=====
+          ./scripts/feeds update local_jike
+          ./scripts/feeds install -a -p local_jike
+          echo "---- 本地集客/LED 包索引 ----"
+          ./scripts/feeds list | grep -E "athena-led|gecoosac" || \
+            echo "WARN: 未找到集客包，请确认 $GITHUB_WORKSPACE/package/ 下有对应目录" >&2
+          # =============================================================
 
       - name: Custom Packages
         run: |
@@ -169,20 +199,22 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Handles.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
 
-          # 【新增】files 大法：只追加不覆盖（集客包内 files 合并到根）
+          # ===== 【新增】files 大法：只追加，绝不覆盖/修改已有文件 =====
+          echo "---- files 大法（cp -n 仅添加，不覆盖）----"
           merge_files() {
             local src="$1"
             local dst="./files"
             [ -d "$src" ] || return 0
             mkdir -p "$dst"
+            # -r 递归  -n 不覆盖已存在  --preserve=mode 保留权限
             cp -r -n --preserve=mode "$src"/* "$dst"/ 2>/dev/null || true
+            echo "  merged: $src -> $dst (仅追加)"
           }
-          merge_files "../package/athena-led/files"
-          merge_files "../package/gecoosac/files"
-          merge_files "../package/luci-app-athena-led/files"
-          merge_files "../package/luci-app-gecoosac/files"
-          
-          echo "Jike AC/LED local build & files merged (add-only)."
+          merge_files "$GITHUB_WORKSPACE/package/athena-led/files"
+          merge_files "$GITHUB_WORKSPACE/package/gecoosac/files"
+          merge_files "$GITHUB_WORKSPACE/package/luci-app-athena-led/files"
+          merge_files "$GITHUB_WORKSPACE/package/luci-app-gecoosac/files"
+          # =============================================================
 
       - name: Custom Settings
         run: |
