@@ -2,14 +2,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
 
-# 安装和更新软件包
-#
-# 用法：UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
-#
-# 示例：
-#   UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
-#   UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
-#   这样会把原有的 open-app-filter、luci-app-appfilter、oaf 相关组件删除，不会出现 coremark 错误。
+#安装和更新软件包
 UPDATE_PACKAGE() {
 	local PKG_NAME=$1
 	local PKG_REPO=$2
@@ -23,9 +16,9 @@ UPDATE_PACKAGE() {
 
 	# 删除本地可能存在的不同名称的软件包
 	for NAME in "${PKG_LIST[@]}"; do
-		# 查找匹配的目录
+		# 查找匹配的目录（含 feeds/istore，避免残留包与新拉取的包重名）
 		echo "Search directory: $NAME"
-		local FOUND_DIRS=$(find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
+		local FOUND_DIRS=$(find ./feeds/luci/ ./feeds/packages/ ./feeds/istore/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
 
 		# 删除找到的目录
 		if [ -n "$FOUND_DIRS" ]; then
@@ -34,7 +27,7 @@ UPDATE_PACKAGE() {
 				echo "Delete directory: $DIR"
 			done <<< "$FOUND_DIRS"
 		else
-			echo "Not found directory: $NAME"
+			echo "Not fonud directory: $NAME"
 		fi
 	done
 
@@ -48,87 +41,36 @@ UPDATE_PACKAGE() {
 	fi
 }
 
-# ===================== 主题 =====================
-# UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
+# 调用示例
+# UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
+
+
+# UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
-# UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
-# UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
-# UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
-# UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
-# UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
-# UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
 UPDATE_PACKAGE "vantage" "anothaDev/luci-theme-vantage" "main"
-
-# ===================== 网络 / 代理 =====================
-# UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
-# UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"
 UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
-# UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
-# UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
-
-# ===================== 工具 / 系统 =====================
-# UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
-# UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
-# UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
-UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupnpd sing-box luci-app-homeproxy luci-app-timewol luci-app-upnp luci-app-wolplus luci-app-wolultra"
-
-UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
-# UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
-# UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
-# UPDATE_PACKAGE "qbittorcrete" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
-UPDATE_PACKAGE "quickfile" "sbwml/luci-app-quickfile" "main"
-
-# UPDATE_PACKAGE "ddns-go" "sirpdboy/luci-app-ddns-go" "main"
-# UPDATE_PACKAGE "netspeedtest" "sirpdboy/netspeedtest" "main" "" "homebox ookla-speedtest"
+UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub miniupnpd luci-app-upnp"
 UPDATE_PACKAGE "netwizard" "sirpdboy/luci-app-netwizard" "main"
-# UPDATE_PACKAGE "partexp" "sirpdboy/luci-app-partexp" "main"
-UPDATE_PACKAGE "timecontrol" "sirpdboy/luci-app-timecontrol" "main"
+UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "open-app-filter luci-app-oaf oaf"
+# 文件管理：Harbor File（单包仓库，直接克隆）
+UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "master"
 
-UPDATE_PACKAGE "natmapt" "muink/openwrt-natmapt" "master"
-UPDATE_PACKAGE "stuntman" "muink/openwrt-stuntman" "master"
-UPDATE_PACKAGE "luci-app-natmapt" "muink/luci-app-natmapt" "master"
+# ============================================================
+# iStore 应用商店（官方 feeds 方式，依赖跟随主干 commit）
+# 官方仓库仅支持 x86_64 / aarch64，其余架构集成了也装不上应用
+# 19.07 及以上还需要在 make menuconfig 中勾选 luci-compat
+# ============================================================
+if ! grep -q "^src-git istore " feeds.conf.default 2>/dev/null; then
+	echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+	echo "Add feed: istore"
+else
+	echo "Feed istore already exists, skip."
+fi
+./scripts/feeds update istore
+./scripts/feeds install -d y -p istore luci-app-store
+./scripts/feeds install -d y -p istore luci-lib-taskd
 
-UPDATE_PACKAGE "airpi3000m-fancontrol" "LianXia233/luci-app-airpi3000m-fancontrol" "main"
-UPDATE_PACKAGE "chfs" "LianXia233/luci-app-chfs" "main"
-UPDATE_PACKAGE "fm350" "LianXia233/luci-app-fm350" "main"
-UPDATE_PACKAGE "h5000m-netmode" "LianXia233/luci-app-h5000m-netmode" "main"
-UPDATE_PACKAGE "mt5700" "LianXia233/luci-app-mt5700" "main"
-UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
-UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
-UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
-
-# ===================== LED 控制器 (雅典娜 AX6600) =====================
-# 走 yml 本地 package/ 拷贝 + PKG_SOURCE:=none 加固，此处不拉取
-# UPDATE_PACKAGE "athena-led" "577090447/JDC-AX6600-Athena-LED-Controller" "main" "pkg"
-# UPDATE_PACKAGE "luci-app-athena-led" "577090447/JDC-AX6600-Athena-LED-Controller" "main" "pkg"
-
-# ========== 第三方扩展插件 ==========
-echo "========================================"
-echo "      EXTRA PACKAGES INSTALL START      "
-echo "========================================"
-# luci-app-store 改由下方 istore feed 提供，避免重复来源
-# UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "" "store"
-UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf open-app-filter"
-UPDATE_PACKAGE "harbor-file" "destan19/luci-app-harbor-file" "main" "" "luci-app-harbor-file"
-echo "========================================"
-echo "       EXTRA PACKAGES INSTALL DONE      "
-echo "========================================"
-
-# ===================== linkease（易有云） =====================
-# 改由 feeds 提供，可自动带出 linksease-common-bin / luci-lib-linkseasefile 等隐藏依赖
-# 对应 feeds.conf.default 中的 nas / nas_luci / istore 三个源
-# UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master" "" "linkease"
-# UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main" "" "luci-app-linkease luci-i18n-linkease-zh-cn"
-
-# ===================== 安装易有云 / iStore feeds（官方方式） =====================
-# 必须放在 UPDATE_PACKAGE 全部调用之后、UPDATE_VERSION 之前
-echo "====== Install linkease / istore feeds ======"
-./scripts/feeds update nas nas_luci istore
-./scripts/feeds install -a -p nas
-./scripts/feeds install -a -p nas_luci
-./scripts/feeds install -a -p istore
-
-# ===================== 版本更新函数 =====================
+#更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
 	local PKG_MARK=${2:-false}
@@ -144,12 +86,6 @@ UPDATE_VERSION() {
 	for PKG_FILE in $PKG_FILES; do
 		local PKG_REPO=$(grep -Po "PKG_SOURCE_URL:=https://.*github.com/\K[^/]+/[^/]+(?=.*)" $PKG_FILE)
 		local PKG_TAG=$(curl -sL "https://api.github.com/repos/$PKG_REPO/releases" | jq -r "map(select(.prerelease == $PKG_MARK)) | first | .tag_name")
-
-		# 仓库没有 Release tag 时直接跳过，避免把版本号改坏
-		if [ -z "$PKG_TAG" ] || [ "$PKG_TAG" = "null" ]; then
-			echo "$PKG_NAME ($PKG_FILE) has no release tag, skip version update."
-			continue
-		fi
 
 		local OLD_VER=$(grep -Po "PKG_VERSION:=\K.*" "$PKG_FILE")
 		local OLD_URL=$(grep -Po "PKG_SOURCE_URL:=\K.*" "$PKG_FILE")
@@ -182,20 +118,3 @@ UPDATE_VERSION() {
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
-
-# ===================== 主题固化（aurora） =====================
-sed -i '/luci.main.theme/d' package/emortal/default-settings/files/zzz-default-settings
-sed -i '/mediaurlbase/d' package/emortal/default-settings/files/zzz-default-settings
-
-mkdir -p files/etc/uci-defaults
-cat > files/etc/uci-defaults/99-set-theme <<'EOF'
-#!/bin/sh
-uci set luci.main.theme="aurora"
-uci set luci.main.mediaurlbase="/luci-static/aurora"
-uci commit luci
-rm -rf /tmp/luci-*
-/etc/init.d/uhttpd restart
-exit 0
-EOF
-
-chmod +x files/etc/uci-defaults/*
