@@ -34,6 +34,7 @@ on:
         options:
           - VIKINGYFY/immortalwrt
           - immortalwrt/immortalwrt
+          - guangyin53222/immortalwrt
       BRANCH:
         default: 'owrt'
         required: true
