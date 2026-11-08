@@ -139,17 +139,6 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-          # ===== 【新增】集客AC & LED 本地仓库编译（src-link，不联网、不干扰其他 feeds）=====
-          # 说明：$GITHUB_WORKSPACE/package 是你仓库根下的 package/，
-          #       里面已有 athena-led / gecoosac / luci-app-athena-led / luci-app-gecoosac
-          if ! grep -q "^src-link local_jike " ./feeds.conf.default; then
-            echo "src-link local_jike $GITHUB_WORKSPACE/package" >> ./feeds.conf.default
-            echo "registered local_jike feed (src-link)"
-          else
-            echo "local_jike feed already registered, skip."
-          fi
-          # ==================================================================================
-
       - name: Check Scripts
         run: |
           find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
@@ -183,14 +172,6 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-          # ===== 【新增】安装本地集客/LED 包（不联网，仅本地索引）=====
-          ./scripts/feeds update local_jike
-          ./scripts/feeds install -a -p local_jike
-          echo "---- 本地集客/LED 包索引 ----"
-          ./scripts/feeds list | grep -E "athena-led|gecoosac" || \
-            echo "WARN: 未找到集客包，请确认 $GITHUB_WORKSPACE/package/ 下有对应目录" >&2
-          # =============================================================
-
       - name: Custom Packages
         run: |
           cd ./wrt/
@@ -199,22 +180,60 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Handles.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
 
-          # ===== 【新增】files 大法：只追加，绝不覆盖/修改已有文件 =====
-          echo "---- files 大法（cp -n 仅添加，不覆盖）----"
-          merge_files() {
+          # ★ 1. 拷入本地源码包（让编译系统识别）
+          echo "---- 拷入本地源码包 ----"
+          copy_pkg() {
             local src="$1"
-            local dst="./files"
-            [ -d "$src" ] || return 0
-            mkdir -p "$dst"
-            # -r 递归  -n 不覆盖已存在  --preserve=mode 保留权限
-            cp -r -n --preserve=mode "$src"/* "$dst"/ 2>/dev/null || true
-            echo "  merged: $src -> $dst (仅追加)"
+            local name="$(basename "$src")"
+            if [ -d "$src" ]; then
+              rm -rf "./package/$name"
+              cp -rf "$src" ./package/
+              echo "  ✓ $name"
+            else
+              echo "  ✗ $name 不存在，跳过"
+            fi
           }
-          merge_files "$GITHUB_WORKSPACE/package/athena-led/files"
-          merge_files "$GITHUB_WORKSPACE/package/gecoosac/files"
-          merge_files "$GITHUB_WORKSPACE/package/luci-app-athena-led/files"
-          merge_files "$GITHUB_WORKSPACE/package/luci-app-gecoosac/files"
-          # =============================================================
+          copy_pkg "$GITHUB_WORKSPACE/package/athena-led"
+          copy_pkg "$GITHUB_WORKSPACE/package/luci-app-athena-led"
+
+          # ★ 2. 勾选本地包进 .config
+          echo "---- 勾选本地包 ----"
+          PKG_SELECT="$GITHUB_WORKSPACE/Config/PACKAGES-LOCAL.txt"
+          if [ -f "$PKG_SELECT" ]; then
+            cat "$PKG_SELECT" >> .config
+            echo "  已追加 PACKAGES-LOCAL.txt"
+          else
+            {
+              echo "CONFIG_PACKAGE_athena-led=y"
+              echo "CONFIG_PACKAGE_luci-app-athena-led=y"
+            } >> .config
+            echo "  兜底写入 athena-led / luci-app-athena-led"
+          fi
+
+          # ★ 3. 合并包自带 files/（强制）
+          echo "---- 合并包自带 files（强制）----"
+          mkdir -p ./files
+          merge_pkg_files() {
+            local src="$1"
+            local f="$src/files"
+            [ -d "$f" ] || return 0
+            cp -rf --preserve=mode "$f"/* ./files/ 2>/dev/null || true
+            echo "  合并 $(basename "$src")/files"
+          }
+          merge_pkg_files "$GITHUB_WORKSPACE/package/athena-led"
+          merge_pkg_files "$GITHUB_WORKSPACE/package/luci-app-athena-led"
+
+          # ★ 4. 保留配置强制覆盖（最高优先级）
+          if [ -d "$GITHUB_WORKSPACE/files/etc" ]; then
+            echo "---- 保留配置强制覆盖（最高优先级）----"
+            cp -rf --preserve=mode "$GITHUB_WORKSPACE/files/etc" ./files/
+            echo "  已覆盖至 ./files/etc/"
+          else
+            echo "WARN: $GITHUB_WORKSPACE/files/etc 不存在，跳过" >&2
+          fi
+
+          echo "---- 最终 files/ 结构 ----"
+          find ./files -type f | sort
 
       - name: Custom Settings
         run: |
