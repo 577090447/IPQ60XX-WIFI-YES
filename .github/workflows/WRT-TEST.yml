@@ -35,8 +35,9 @@ on:
           - VIKINGYFY/immortalwrt
           - immortalwrt/immortalwrt
           - guangyin53222/immortalwrt
+          - 577090447/immortalwrt
       BRANCH:
-        default: 'owrt'
+        default: 'main'
         required: true
         type: string
       PACKAGE:
