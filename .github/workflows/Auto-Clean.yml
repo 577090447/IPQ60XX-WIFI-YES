@@ -4,10 +4,10 @@
 name: Auto-Clean
 
 on:
-  #自动清理：每天早上5点
+  # 自动清理：每天北京时间 18:00
   schedule:
-    - cron: 21 21 * * *
-  #手动清理
+    - cron: 0 10 * * *
+  # 手动清理
   workflow_dispatch:
 
 permissions: write-all
