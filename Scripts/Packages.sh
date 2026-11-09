@@ -97,9 +97,9 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "master"
 # 集客 AC 控制器（含主程序 gecoosac + 界面 luci-app-gecoosac）
 UPDATE_PACKAGE "gecoosac" "laipeng668/luci-app-gecoosac" "main" "" "gecoosac luci-app-gecoosac"
 # linkease + istore软件中心
-UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master" "pkg" "linkease"
-UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main" "pkg" "luci-app-linkease"
-UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "pkg" "luci-app-store"
+UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
+UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
+UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 
 #更新软件包版本
 UPDATE_VERSION() {
