@@ -39,7 +39,7 @@ CONFIG_PACKAGE_luci-i18n-rtp2httpd-zh-cn=y
 
 # ==================== 易有云 (Linkease ) ====================
 CONFIG_PACKAGE_linkease=y
-CONFIG_PACKAGE_linkease-common-bin=y
+# CONFIG_PACKAGE_linkease-common-bin is not set    ← 注释掉
 CONFIG_PACKAGE_luci-app-linkease=y
 CONFIG_PACKAGE_luci-lib-linkeasefile=y
 CONFIG_PACKAGE_luci-i18n-linkease-zh-cn=y
