@@ -96,6 +96,11 @@ UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "open-app-
 UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "master"
 # 集客 AC 控制器（含主程序 gecoosac + 界面 luci-app-gecoosac）
 UPDATE_PACKAGE "gecoosac" "laipeng668/luci-app-gecoosac" "main" "" "gecoosac luci-app-gecoosac"
+# linkease  store
+UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master" "" "linkease"
+UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main" "" "luci-app-linkease"
+UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main" "" "luci-app-store"
+
 #更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
