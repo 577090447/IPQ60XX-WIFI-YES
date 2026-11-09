@@ -138,31 +138,26 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-      # ========== 注入 files/ + 本地 package（Files 大法 & athena-led 本地化） ==========
+      # ========== 注入 files/ + 本地 package（athena-led 全家桶） ==========
       - name: Inject Files & Local Packages
         run: |
-          # Files 大法：固化 /etc 配置
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             mkdir -p "$GITHUB_WORKSPACE/wrt/files"
-            rsync -a --delete \
-              "$GITHUB_WORKSPACE/files/" \
-              "$GITHUB_WORKSPACE/wrt/files/"
-            echo "✅ files/ injected:"
-            find "$GITHUB_WORKSPACE/wrt/files" -type f | sed 's|.*/wrt/||'
+            rsync -a --delete "$GITHUB_WORKSPACE/files/" "$GITHUB_WORKSPACE/wrt/files/"
+            echo "✅ files/ injected"
           else
-            echo "ℹ️ 未检测到 files/，跳过 Files 大法"
+            echo "ℹ️ 未检测到 files/，跳过"
           fi
 
-          # athena-led 本地化：直接用仓库 package/athena-led，CI 不再 clone
-          if [ -d "$GITHUB_WORKSPACE/package/athena-led" ]; then
-            mkdir -p "$GITHUB_WORKSPACE/wrt/package/athena-led"
-            rsync -a --delete \
-              "$GITHUB_WORKSPACE/package/athena-led/" \
-              "$GITHUB_WORKSPACE/wrt/package/athena-led/"
-            echo "✅ athena-led 本地包已注入，CI 零 clone"
-          else
-            echo "ℹ️ 未检测到 package/athena-led，跳过本地化"
-          fi
+          for PKG in athena-led luci-app-athena-led; do
+            if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
+              mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
+              rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
+              echo "✅ 本地包注入: $PKG"
+            else
+              echo "⚠️ 未检测到 package/$PKG，跳过"
+            fi
+          done
       # ========== 注入结束 ==========
 
       - name: Check Scripts
