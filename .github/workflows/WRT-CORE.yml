@@ -138,9 +138,10 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-      # ========== Files 大法（已集成，无需任何额外操作） ==========
-      - name: Inject Files 大法
+      # ========== 注入 files/ + 本地 package（Files 大法 & athena-led 本地化） ==========
+      - name: Inject Files & Local Packages
         run: |
+          # Files 大法：固化 /etc 配置
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             mkdir -p "$GITHUB_WORKSPACE/wrt/files"
             rsync -a --delete \
@@ -151,7 +152,18 @@ jobs:
           else
             echo "ℹ️ 未检测到 files/，跳过 Files 大法"
           fi
-      # ========== Files 大法结束 ==========
+
+          # athena-led 本地化：直接用仓库 package/athena-led，CI 不再 clone
+          if [ -d "$GITHUB_WORKSPACE/package/athena-led" ]; then
+            mkdir -p "$GITHUB_WORKSPACE/wrt/package/athena-led"
+            rsync -a --delete \
+              "$GITHUB_WORKSPACE/package/athena-led/" \
+              "$GITHUB_WORKSPACE/wrt/package/athena-led/"
+            echo "✅ athena-led 本地包已注入，CI 零 clone"
+          else
+            echo "ℹ️ 未检测到 package/athena-led，跳过本地化"
+          fi
+      # ========== 注入结束 ==========
 
       - name: Check Scripts
         run: |
