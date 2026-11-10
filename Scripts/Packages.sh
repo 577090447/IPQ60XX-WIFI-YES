@@ -95,7 +95,7 @@ UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "open-app-
 # 文件管理：Harbor File（单包仓库，直接克隆）
 UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "master"
 # 集客 AC 控制器（含主程序 gecoosac + 界面 luci-app-gecoosac）
-UPDATE_PACKAGE "gecoosac" "laipeng668/luci-app-gecoosac" "main" "" "gecoosac luci-app-gecoosac"
+# UPDATE_PACKAGE "gecoosac" "laipeng668/luci-app-gecoosac" "main" "" "gecoosac luci-app-gecoosac"
 # linkease + istore软件中心
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
