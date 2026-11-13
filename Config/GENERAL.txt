@@ -8,10 +8,18 @@ CONFIG_PACKAGE_luci-i18n-vantage-zh-cn=y
 CONFIG_PACKAGE_luci-app-netwizard=y
 CONFIG_PACKAGE_luci-i18n-netwizard-zh-cn=y
 
+# ==================== 文件管理 ====================
+# quickfile：文件管理器，网页端浏览、上传下载
+CONFIG_PACKAGE_luci-app-quickfile=y
+
 # ==================== 科学插件 ====================
 CONFIG_PACKAGE_luci-app-openclash=y
 CONFIG_PACKAGE_dnsmasq-full=y
 CONFIG_PACKAGE_ipset=y
+# coreutils：GNU标准工具，OpenClash脚本依赖，busybox精简版容易参数不兼容
+CONFIG_PACKAGE_coreutils=y
+# jq：路由器内json解析，OpenClash、iStore部分状态面板读取json用
+CONFIG_PACKAGE_jq=y
 
 # ==================== 系统工具 ====================
 CONFIG_PACKAGE_luci-app-autoreboot=y
@@ -57,6 +65,8 @@ CONFIG_PACKAGE_luci-app-upnp=y
 CONFIG_PACKAGE_luci-app-oaf=y
 CONFIG_PACKAGE_appfilter=y
 CONFIG_PACKAGE_kmod-oaf=y
+# iptables-nft：fw4 nftables兼容层，OAF、OpenClash部分老代码调用iptables命令
+CONFIG_PACKAGE_iptables-nft=y
 
 # ==================== iStore (保留官方源) ====================
 CONFIG_PACKAGE_luci-app-store=y
@@ -83,6 +93,7 @@ CONFIG_PACKAGE_dockerd=y
 CONFIG_PACKAGE_docker-compose=y
 CONFIG_PACKAGE_luci-lib-docker=y
 CONFIG_PACKAGE_cgroupfs-mount=y
+# bash：兼容网上大部分第三方shell脚本（ash不支持[[ ]]、数组等语法）
 CONFIG_PACKAGE_bash=y
 CONFIG_PACKAGE_block-mount=y
 CONFIG_PACKAGE_kmod-usb-storage=y
@@ -127,6 +138,7 @@ CONFIG_PACKAGE_kmod-nft-dup-inet=y
 CONFIG_PACKAGE_kmod-nft-fib=y
 CONFIG_PACKAGE_kmod-nft-nat=y
 CONFIG_PACKAGE_kmod-nft-netdev=y
+# kmod-nft-offload=n 不要开！会绕过conntrack导致OAF识别失效
 CONFIG_PACKAGE_kmod-nft-offload=n
 CONFIG_PACKAGE_kmod-nft-queue=y
 CONFIG_PACKAGE_kmod-nft-socket=y
