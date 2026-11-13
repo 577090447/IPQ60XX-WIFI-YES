@@ -66,7 +66,6 @@ UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
 UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
 UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
 UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupnpd sing-box luci-app-homeproxy luci-app-timewol luci-app-upnp luci-app-wolplus luci-app-wolultra"
-
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
 UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
@@ -100,6 +99,33 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "master"
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
+
+# ==========================================
+# Turbo ACC (no-sfe, chenmozhijin 版，与 OAF 共存)
+# 注意：不走 UPDATE_PACKAGE 函数，因为它需要替换 firewall4/nftables 并打补丁
+# ==========================================
+echo " "
+echo ">>> Adding turboacc (no-sfe)..."
+TURBOACC_SCRIPT="./add_turboacc.sh"
+
+if [ -f "$TURBOACC_SCRIPT" ]; then
+    rm -f "$TURBOACC_SCRIPT"
+fi
+
+curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh \
+     -o "$TURBOACC_SCRIPT"
+
+if [ -f "$TURBOACC_SCRIPT" ]; then
+    bash "$TURBOACC_SCRIPT" --no-sfe
+    echo ">>> turboacc (no-sfe) patch applied successfully"
+
+    # 关键：turboacc 替换了 firewall4/nftables，必须重新 install feeds
+    echo ">>> Re-installing feeds after turboacc patch..."
+    ./scripts/feeds update -a
+    ./scripts/feeds install -a
+else
+    echo ">>> ERROR: Failed to download add_turboacc.sh, skipping turboacc"
+fi
 
 #更新软件包版本
 UPDATE_VERSION() {
