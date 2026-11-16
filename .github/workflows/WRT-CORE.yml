@@ -138,7 +138,7 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-      # ========== 注入 files/ + 本地 package（含 fanchmwrt 主题全家桶） ==========
+      # ========== 注入 files/ + 本地 package（无 fcm 层级） ==========
       - name: Inject Files & Local Packages
         run: |
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
@@ -149,36 +149,45 @@ jobs:
             echo "ℹ️ 未检测到 files/，跳过"
           fi
 
-          for PKG in athena-led luci-app-athena-led luci-theme-fanchmwrt; do
+          # athena-led 全家桶
+          for PKG in athena-led luci-app-athena-led; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
-              mkdir -p "$GITHUB_WORKSPACE/wrt/package/fcm/$PKG"
-              rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/fcm/$PKG/"
-              echo "✅ 本地包注入: $PKG -> package/fcm/$PKG"
+              mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
+              rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
+              echo "✅ 本地包注入: $PKG -> package/$PKG"
             else
               echo "⚠️ 未检测到 package/$PKG，跳过"
             fi
           done
 
-          # ========== 强制替换 FanchmWrt -> OpenWRT（防拉新代码回退） ==========
-          THEME_DIR="$GITHUB_WORKSPACE/wrt/package/fcm/luci-theme-fanchmwrt"
-          if [ -d "$THEME_DIR" ]; then
-            # 登录弹窗标题
+          # FanchmWrt 主题（无 fcm，直接放 package/ 根）
+          THEME_SRC="$GITHUB_WORKSPACE/package/luci-theme-fanchmwrt"
+          THEME_DST="$GITHUB_WORKSPACE/wrt/package/luci-theme-fanchmwrt"
+          if [ -d "$THEME_SRC" ]; then
+            mkdir -p "$THEME_DST"
+            rsync -a --delete "$THEME_SRC/" "$THEME_DST/"
+            echo "✅ 本地包注入: luci-theme-fanchmwrt -> package/luci-theme-fanchmwrt"
+
+            # 强制替换 FanchmWrt -> OpenWRT
             sed -i "s/ui.showModal('FanchmWrt'/ui.showModal('OpenWRT'/" \
-              "$THEME_DIR/ucode/template/themes/fanchmwrt/login.js" 2>/dev/null || true
-            # 侧边栏兜底品牌名
+              "$THEME_DST/ucode/template/themes/fanchmwrt/login.js" 2>/dev/null || true
             sed -i "s/|| 'FanchmWrt'/|| 'OpenWRT'/" \
-              "$THEME_DIR/ucode/template/themes/fanchmwrt/sidebar.js" 2>/dev/null || true
-            # Makefile 显示标题
+              "$THEME_DST/ucode/template/themes/fanchmwrt/sidebar.js" 2>/dev/null || true
             sed -i "s/LUCI_TITLE:=FanchmWrt Theme (default)/LUCI_TITLE:=OpenWRT Theme (default)/" \
-              "$THEME_DIR/Makefile" 2>/dev/null || true
-            # 全局兜底（po文件、header等）
-            grep -rl 'FanchmWrt' "$THEME_DIR" --include="*.js" --include="*.htm" --include="*.po" --include="*.lua" 2>/dev/null | \
-              while read -r f; do
-                sed -i 's/FanchmWrt/OpenWRT/g' "$f"
-              done
+              "$THEME_DST/Makefile" 2>/dev/null || true
+            grep -rl 'FanchmWrt' "$THEME_DST" --include="*.js" --include="*.htm" --include="*.po" --include="*.lua" 2>/dev/null | \
+              while read -r f; do sed -i 's/FanchmWrt/OpenWRT/g' "$f"; done
             echo "✅ FanchmWrt -> OpenWRT 替换完成"
+          else
+            echo "⚠️ 未检测到 package/luci-theme-fanchmwrt，跳过"
           fi
       # ========== 注入结束 ==========
+
+      - name: Check Scripts
+        run: |
+          find "$GITHUB_WORKSPACE" -maxdepth 5 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
+          chmod +x "$GITHUB_WORKSPACE/Scripts/Packages.sh" "$GITHUB_WORKSPACE/Scripts/Handles.sh" "$GITHUB_WORKSPACE/Scripts/Settings.sh" 2>/dev/null || true
+          chmod +x "$GITHUB_WORKSPACE/.github/scripts/"*.sh 2>/dev/null || true
 
       - name: Restore Build Cache
         id: cache-restore
