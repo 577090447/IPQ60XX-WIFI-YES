@@ -41,6 +41,36 @@ UPDATE_PACKAGE() {
 	fi
 }
 
+# 从大杂烩仓库中 sparse-checkout 指定子目录到 package/
+SPARSE_CLONE_SUBDIR() {
+	local REPO=$1        # 格式: "user/repo"
+	local BRANCH=$2
+	local SUBDIR=$3      # 仓库内相对路径，如 "package/fcm/luci-theme-fanchmwrt"
+	local DEST=$4        # 本地目标，如 "./package/luci-theme-fanchmwrt"
+
+	local TMP=".tmp_sparse_${BRANCH}_$$"
+	echo "Sparse cloning $REPO/$BRANCH::$SUBDIR -> $DEST"
+
+	rm -rf "$DEST" "$TMP"
+
+	git clone --depth=1 --single-branch \
+		--branch "$BRANCH" \
+		--filter=blob:none --sparse \
+		"https://github.com/$REPO.git" "$TMP"
+
+	(
+		cd "$TMP"
+		git sparse-checkout set "$SUBDIR"
+	)
+
+	mkdir -p "$DEST"
+	cp -rf "$TMP/$SUBDIR"/. "$DEST/"
+	rm -rf "$TMP"
+
+	echo "Done: $DEST"
+	echo " "
+}
+
 # 调用示例
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
@@ -99,6 +129,9 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
+
+# FanchmWrt 主题（从大杂烩仓库 sparse-checkout 子目录，避免拉取无关 package）
+SPARSE_CLONE_SUBDIR "fanchmwrt/fanchmwrt" "fanchmwrt-25.12.6" "package/fcm/luci-theme-fanchmwrt" "./package/luci-theme-fanchmwrt"
 
 
 
