@@ -223,3 +223,15 @@ CONFIG_PACKAGE_luci-theme-shadcn=n
 CONFIG_PACKAGE_OpenWrt-momo=n
 CONFIG_PACKAGE_momo=n
 CONFIG_PACKAGE_luci-app-momo=n
+
+CONFIG_PACKAGE_fwx=y
+CONFIG_PACKAGE_fwxd=y
+CONFIG_PACKAGE_libfwx_common=y
+CONFIG_PACKAGE_fullconenat-nft=y
+# CONFIG_PACKAGE_fullconenat=y  # 旧版，若与 nft 互斥则关
+CONFIG_PACKAGE_fullconenat-sonic=n  # 历史已关
+
+# NSS 保障
+CONFIG_PACKAGE_kmod-nft-offload=n
+
+
