@@ -133,6 +133,7 @@ UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 # FanchmWrt 主题（从大杂烩仓库 sparse-checkout 子目录，避免拉取无关 package）
 # SPARSE_CLONE_SUBDIR "fanchmwrt/fanchmwrt" "fanchmwrt-25.12.6" "package/fcm/luci-theme-fanchmwrt" "./package/luci-theme-fanchmwrt"
 
+UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
 
 
 #更新软件包版本
