@@ -1,8 +1,8 @@
 # ==================== 主题与基础 ====================
 CONFIG_PACKAGE_luci-theme-bootstrap=y
 CONFIG_PACKAGE_luci-theme-vantage=n
-CONFIG_PACKAGE_luci-app-vantage=n
-CONFIG_PACKAGE_luci-i18n-vantage-zh-cn=n
+CONFIG_PACKAGE_luci-app-vantage=y
+CONFIG_PACKAGE_luci-i18n-vantage-zh-cn=y
 CONFIG_PACKAGE_luci-theme-carbon=y
 
 # ==================== 设置向导 ====================
