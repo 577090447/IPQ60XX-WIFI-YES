@@ -138,10 +138,9 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-      # ========== 注入 files/ + 本地 package（与截图目录完全对齐） ==========
+      # ========== 注入 files/ + 本地 package（athena-led 全家桶） ==========
       - name: Inject Files & Local Packages
         run: |
-          # 1. 注入自定义 files/
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             mkdir -p "$GITHUB_WORKSPACE/wrt/files"
             rsync -a --delete "$GITHUB_WORKSPACE/files/" "$GITHUB_WORKSPACE/wrt/files/"
@@ -150,40 +149,20 @@ jobs:
             echo "ℹ️ 未检测到 files/，跳过"
           fi
 
-          # 2. 注入截图中的本地包（剥离 fcm- 前缀，兼容命名）
-          for _pkg in athena-led fullconenat-nft fullconenat fwx fwxd libfwx_common luci-app-athena-led luci-theme-fanchmwrt; do
-            _src="$GITHUB_WORKSPACE/package/$_pkg"
-            _dst_name="${_pkg#fcm-}"
-            _dst="$GITHUB_WORKSPACE/wrt/package/$_dst_name"
-
-            if [ -d "$_src" ]; then
-              mkdir -p "$_dst"
-              rsync -a --delete "$_src/" "$_dst/"
-              echo "✅ 本地包注入: $_pkg -> package/$_dst_name"
-
-              # 主题专属：FanchmWrt -> OpenWRT 替换
-              if [ "$_dst_name" = "luci-theme-fanchmwrt" ]; then
-                sed -i "s/ui.showModal('FanchmWrt'/ui.showModal('OpenWRT'/" \
-                  "$_dst/ucode/template/themes/fanchmwrt/login.js" 2>/dev/null || true
-                sed -i "s/|| 'FanchmWrt'/|| 'OpenWRT'/" \
-                  "$_dst/ucode/template/themes/fanchmwrt/sidebar.js" 2>/dev/null || true
-                sed -i "s/LUCI_TITLE:=FanchmWrt Theme (default)/LUCI_TITLE:=OpenWRT Theme (default)/" \
-                  "$_dst/Makefile" 2>/dev/null || true
-                grep -rl 'FanchmWrt' "$_dst" --include="*.js" --include="*.htm" --include="*.po" --include="*.lua" 2>/dev/null | \
-                  while read -r _f; do sed -i 's/FanchmWrt/OpenWRT/g' "$_f"; done
-                echo "✅ FanchmWrt -> OpenWRT 替换完成"
-              fi
+          for PKG in athena-led luci-app-athena-led; do
+            if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
+              mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
+              rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
+              echo "✅ 本地包注入: $PKG"
             else
-              echo "⚠️ 未检测到 package/$_pkg，跳过"
+              echo "⚠️ 未检测到 package/$PKG，跳过"
             fi
           done
       # ========== 注入结束 ==========
 
       - name: Check Scripts
         run: |
-          find "$GITHUB_WORKSPACE" -maxdepth 5 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
-          chmod +x "$GITHUB_WORKSPACE/Scripts/Packages.sh" "$GITHUB_WORKSPACE/Scripts/Handles.sh" "$GITHUB_WORKSPACE/Scripts/Settings.sh" 2>/dev/null || true
-          chmod +x "$GITHUB_WORKSPACE/.github/scripts/"*.sh 2>/dev/null || true
+          find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
 
       - name: Restore Build Cache
         id: cache-restore
