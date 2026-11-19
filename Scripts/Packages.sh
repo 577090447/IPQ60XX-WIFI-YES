@@ -101,18 +101,35 @@ UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
 # ============================================
-# Turbo ACC 网络加速（chenmozhijin 版，无 SFE）
+# Turbo ACC 网络加速（mufeng05 版，适配 6.18）
 # ============================================
 echo " "
-echo ">>> Adding Turbo ACC (no-SFE)..."
-curl -sSL https://github.com/chenmozhijin/turboacc/raw/luci/add_turboacc.sh -o ./add_turboacc.sh
+echo ">>> Adding Turbo ACC (mufeng05, kernel-adaptive)..."
+curl -sSL https://raw.githubusercontent.com/mufeng05/turboacc/main/add_turboacc.sh -o ./add_turboacc.sh
 if [ -f ./add_turboacc.sh ]; then
-    bash ./add_turboacc.sh --no-sfe
+    bash ./add_turboacc.sh
     rm -f ./add_turboacc.sh
-    echo ">>> Turbo ACC added successfully."
+    echo ">>> Turbo ACC (mufeng05) added successfully."
 else
     echo ">>> ERROR: Failed to download add_turboacc.sh, skipping."
 fi
+
+# 写入 .config 选项（确保编入）
+echo " "
+echo ">>> Patching .config for Turbo ACC..."
+for OPT in \
+    "CONFIG_PACKAGE_luci-app-turboacc=y" \
+    "CONFIG_PACKAGE_kmod-nft-fullcone=y" \
+    "CONFIG_PACKAGE_kmod-tcp-bbr=y"
+do
+    KEY=$(echo "$OPT" | cut -d= -f1)
+    if grep -q "^# $KEY is not set" .config 2>/dev/null; then
+        sed -i "s|^# $KEY is not set|$OPT|" .config
+    elif ! grep -q "^$KEY=" .config 2>/dev/null; then
+        echo "$OPT" >> .config
+    fi
+done
+echo ">>> .config patched."
 
 #更新软件包版本
 UPDATE_VERSION() {
