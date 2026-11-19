@@ -24,12 +24,32 @@ sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" $CFG_FILE
 #修改默认主机名
 sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
 
-#配置文件修改
+# ==================== SONiC FullCone 防御性清理（必须在 cat .config 之前） ====================
+# 如果 Config/*.txt 里还有 turboacc / 952 相关残留，在这里清掉
+sed -i '/^CONFIG_PACKAGE_luci-app-turboacc=/d' ./.config
+sed -i '/^CONFIG_PACKAGE_kmod-nft-fullcone=/d' ./.config
+sed -i '/^CONFIG_PACKAGE_kmod-shortcut-fe=/d' ./.config
+sed -i '/^CONFIG_PACKAGE_kmod-fast-classifier=/d' ./.config
+sed -i '/^CONFIG_PACKAGE_kmod-tcp-bbr=/d' ./.config
+
+# ==================== 配置文件修改 ====================
 echo "CONFIG_PACKAGE_luci=y" >> ./.config
 echo "CONFIG_LUCI_LANG_zh_Hans=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-theme-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME=y" >> ./.config
 echo "CONFIG_PACKAGE_luci-app-$WRT_THEME-config=y" >> ./.config
+
+# ==================== SONiC FullCone 写入（替代 turboacc） ====================
+echo "" >> ./.config
+echo "# ==================== SONiC FullCone（无 SFE / 无 952 补丁） ====================" >> ./.config
+echo "CONFIG_PACKAGE_fullconenat-sonic=y" >> ./.config
+echo "" >> ./.config
+echo "# 防御性禁用 turboacc / SFE / Fast Classifier" >> ./.config
+echo "# CONFIG_PACKAGE_luci-app-turboacc is not set" >> ./.config
+echo "# CONFIG_PACKAGE_kmod-shortcut-fe is not set" >> ./.config
+echo "# CONFIG_PACKAGE_kmod-fast-classifier is not set" >> ./.config
+echo "# CONFIG_PACKAGE_kmod-nft-fullcone is not set" >> ./.config
+echo "" >> ./.config
 
 #引入私有扩展配置
 if [ -f "$GITHUB_WORKSPACE/Config/PRIVATE.txt" ]; then
