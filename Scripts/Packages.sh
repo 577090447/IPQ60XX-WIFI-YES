@@ -43,7 +43,7 @@ UPDATE_PACKAGE() {
 
 # 调用示例
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
-# UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
+# UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
 
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
 # UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
@@ -93,7 +93,7 @@ UPDATE_PACKAGE "stuntman" "muink/openwrt-stuntman" "master"
 UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "open-app-filter luci-app-oaf oaf"
 # 文件管理：Harbor File（单包仓库，直接克隆）
 UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
-# 集客 AC 控制器（含主程序 gecoosac + 界面 luci-app-gecoosac）
+# 集客 AC 控制器
 # UPDATE_PACKAGE "gecoosac" "laipeng668/luci-app-gecoosac" "main" "" "gecoosac luci-app-gecoosac"
 # linkease + istore软件中心
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
@@ -102,25 +102,28 @@ UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
 
 # ============================================
-# Turbo ACC 网络加速（mufeng05 版，适配 6.18）
+# SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
+# 适配 fw4(nftables) + 内核 6.6/6.12/6.18
 # ============================================
 echo " "
-echo ">>> Adding Turbo ACC (mufeng05, kernel-adaptive)..."
-curl -sSL https://raw.githubusercontent.com/mufeng05/turboacc/main/add_turboacc.sh -o ./add_turboacc.sh
-if [ -f ./add_turboacc.sh ]; then
-    bash ./add_turboacc.sh
-    rm -f ./add_turboacc.sh
-    echo ">>> Turbo ACC (mufeng05) added successfully."
+echo ">>> Cleaning old turboacc / 952 leftovers..."
+find target/linux/generic/hack-6.18* -name "952-*" -delete 2>/dev/null
+find target/linux/generic -name "*.rej" -delete 2>/dev/null
+
+echo ">>> Adding SONiC FullCone..."
+curl -sSL https://raw.githubusercontent.com/mufeng05/openwrt-sonic-fullcone/master/add_sonic_fullcone.sh -o ./add_sonic_fullcone.sh
+if [ -f ./add_sonic_fullcone.sh ]; then
+    bash ./add_sonic_fullcone.sh
+    rm -f ./add_sonic_fullcone.sh
+    echo ">>> SONiC FullCone patches applied successfully."
 else
-    echo ">>> ERROR: Failed to download add_turboacc.sh, skipping."
+    echo ">>> ERROR: Failed to download add_sonic_fullcone.sh, skipping."
 fi
 
-# 写入 .config 选项（确保编入）
+# 写入 .config 选项（确保编入，同时禁用 SFE/turboacc）
 echo " "
-echo ">>> Patching .config for Turbo ACC..."
+echo ">>> Patching .config for SONiC FullCone..."
 for OPT in \
-    "CONFIG_PACKAGE_luci-app-turboacc=y" \
-    "CONFIG_PACKAGE_kmod-nft-fullcone=y" \
     "CONFIG_PACKAGE_kmod-tcp-bbr=y"
 do
     KEY=$(echo "$OPT" | cut -d= -f1)
@@ -130,7 +133,17 @@ do
         echo "$OPT" >> .config
     fi
 done
-echo ">>> .config patched."
+
+# 显式禁用 turboacc / SFE（防御性）
+for DISABLED in \
+    "CONFIG_PACKAGE_luci-app-turboacc" \
+    "CONFIG_PACKAGE_kmod-shortcut-fe" \
+    "CONFIG_PACKAGE_kmod-fast-classifier"
+do
+    sed -i "/^${DISABLED}=/d" .config 2>/dev/null
+    echo "# ${DISABLED} is not set" >> .config
+done
+echo ">>> .config tuned (BBR=y, SFE/turboacc disabled)."
 
 #更新软件包版本
 UPDATE_VERSION() {
