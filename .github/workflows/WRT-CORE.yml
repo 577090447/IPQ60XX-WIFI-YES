@@ -143,7 +143,7 @@ jobs:
         run: |
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             mkdir -p "$GITHUB_WORKSPACE/wrt/files"
-            rsync -a --delete "$GITHUB_WORKSPACE/files/" "$GITHUB_WORKSPACE/wrt/files/"
+            rsync -a "$GITHUB_WORKSPACE/files/" "$GITHUB_WORKSPACE/wrt/files/"
             echo "✅ files/ injected"
           else
             echo "ℹ️ 未检测到 files/，跳过"
@@ -198,6 +198,18 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Packages.sh
           $GITHUB_WORKSPACE/Scripts/Handles.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
+          # SONiC FullCone 注入后会新增包定义，必须再 install 一次
+          ./scripts/feeds install -a
+
+      - name: Verify No 952 / turboacc Leftovers
+        run: |
+          cd ./wrt/
+          if find target/linux/generic/hack-6.18* -name "952-*" 2>/dev/null | grep -q .; then
+            echo "❌ ERROR: 952 patch still present! turboacc 残留未清理。"
+            find target/linux/generic/hack-6.18* -name "952-*"
+            exit 1
+          fi
+          echo "✅ No 952 / turboacc leftovers found."
 
       - name: Custom Settings
         run: |
@@ -296,7 +308,7 @@ jobs:
             请注意选择你需要的设备固件！
             不要问，刷就完事了！
 
-            全系带开源硬件加速，别问了！
+            全系带开源硬件加速（NSS + SONiC FullCone），别问了！
 
             源码：${{env.WRT_REPO}}
             分支：${{env.WRT_BRANCH}}
