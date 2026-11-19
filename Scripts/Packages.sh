@@ -41,85 +41,55 @@ UPDATE_PACKAGE() {
 	fi
 }
 
-# 从大杂烩仓库中 sparse-checkout 指定子目录到 package/
-SPARSE_CLONE_SUBDIR() {
-	local REPO=$1        # 格式: "user/repo"
-	local BRANCH=$2
-	local SUBDIR=$3      # 仓库内相对路径，如 "package/fcm/luci-theme-fanchmwrt"
-	local DEST=$4        # 本地目标，如 "./package/luci-theme-fanchmwrt"
-
-	local TMP=".tmp_sparse_${BRANCH}_$$"
-	echo "Sparse cloning $REPO/$BRANCH::$SUBDIR -> $DEST"
-
-	rm -rf "$DEST" "$TMP"
-
-	git clone --depth=1 --single-branch \
-		--branch "$BRANCH" \
-		--filter=blob:none --sparse \
-		"https://github.com/$REPO.git" "$TMP"
-
-	(
-		cd "$TMP"
-		git sparse-checkout set "$SUBDIR"
-	)
-
-	mkdir -p "$DEST"
-	cp -rf "$TMP/$SUBDIR"/. "$DEST/"
-	rm -rf "$TMP"
-
-	echo "Done: $DEST"
-	echo " "
-}
-
 # 调用示例
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
 
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
-UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
+# UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
-UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
-UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
-UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
-UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
-UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
-UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
+# UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
+# UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
+# UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
+# UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
+# UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
+# UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
 UPDATE_PACKAGE "vantage" "anothaDev/luci-theme-vantage" "main"
 
-UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
-UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"
+# UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
+# UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"
 UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
-UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
-UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
+# UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
+# UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
 
-UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
-UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
-UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
+# UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
+# UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
+# UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
 UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupnpd sing-box luci-app-homeproxy luci-app-timewol luci-app-upnp luci-app-wolplus luci-app-wolultra"
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
-UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
-UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
-UPDATE_PACKAGE "qbittorrent" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
-UPDATE_PACKAGE "quickfile" "sbwml/luci-app-quickfile" "main"
+# UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
+# UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
+# UPDATE_PACKAGE "qbittorrent" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
+# UPDATE_PACKAGE "quickfile" "sbwml/luci-app-quickfile" "main"
 
-UPDATE_PACKAGE "ddns-go" "sirpdboy/luci-app-ddns-go" "main"
-UPDATE_PACKAGE "netspeedtest" "sirpdboy/netspeedtest" "main" "" "homebox ookla-speedtest"
+# UPDATE_PACKAGE "ddns-go" "sirpdboy/luci-app-ddns-go" "main"
+# UPDATE_PACKAGE "netspeedtest" "sirpdboy/netspeedtest" "main" "" "homebox ookla-speedtest"
 UPDATE_PACKAGE "netwizard" "sirpdboy/luci-app-netwizard" "main"
-UPDATE_PACKAGE "partexp" "sirpdboy/luci-app-partexp" "main"
-UPDATE_PACKAGE "timecontrol" "sirpdboy/luci-app-timecontrol" "main"
+# UPDATE_PACKAGE "partexp" "sirpdboy/luci-app-partexp" "main"
+# UPDATE_PACKAGE "timecontrol" "sirpdboy/luci-app-timecontrol" "main"
 
-UPDATE_PACKAGE "natmapt" "muink/openwrt-natmapt" "master"
+# UPDATE_PACKAGE "natmapt" "muink/openwrt-natmapt" "master"
 UPDATE_PACKAGE "stuntman" "muink/openwrt-stuntman" "master"
-UPDATE_PACKAGE "luci-app-natmapt" "muink/luci-app-natmapt" "master"
+# UPDATE_PACKAGE "luci-app-natmapt" "muink/luci-app-natmapt" "master"
 
-UPDATE_PACKAGE "airpi3000m-fancontrol" "LianXia233/luci-app-airpi3000m-fancontrol" "main"
-UPDATE_PACKAGE "chfs" "LianXia233/luci-app-chfs" "main"
-UPDATE_PACKAGE "fm350" "LianXia233/luci-app-fm350" "main"
-UPDATE_PACKAGE "h5000m-netmode" "LianXia233/luci-app-h5000m-netmode" "main"
-UPDATE_PACKAGE "mt5700" "LianXia233/luci-app-mt5700" "main"
-UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
-UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
-UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
+# UPDATE_PACKAGE "airpi3000m-fancontrol" "LianXia233/luci-app-airpi3000m-fancontrol" "main"
+# UPDATE_PACKAGE "chfs" "LianXia233/luci-app-chfs" "main"
+# UPDATE_PACKAGE "fm350" "LianXia233/luci-app-fm350" "main"
+# UPDATE_PACKAGE "h5000m-netmode" "LianXia233/luci-app-h5000m-netmode" "main"
+# UPDATE_PACKAGE "mt5700" "LianXia233/luci-app-mt5700" "main"
+# UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
+# UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
+# UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
 UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "open-app-filter luci-app-oaf oaf"
 # 文件管理：Harbor File（单包仓库，直接克隆）
 UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
@@ -129,12 +99,20 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
-
-# FanchmWrt 主题（从大杂烩仓库 sparse-checkout 子目录，避免拉取无关 package）
-# SPARSE_CLONE_SUBDIR "fanchmwrt/fanchmwrt" "fanchmwrt-25.12.6" "package/fcm/luci-theme-fanchmwrt" "./package/luci-theme-fanchmwrt"
-
 UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
-
+# ============================================
+# Turbo ACC 网络加速（chenmozhijin 版，无 SFE）
+# ============================================
+echo " "
+echo ">>> Adding Turbo ACC (no-SFE)..."
+curl -sSL https://github.com/chenmozhijin/turboacc/raw/luci/add_turboacc.sh -o ./add_turboacc.sh
+if [ -f ./add_turboacc.sh ]; then
+    bash ./add_turboacc.sh --no-sfe
+    rm -f ./add_turboacc.sh
+    echo ">>> Turbo ACC added successfully."
+else
+    echo ">>> ERROR: Failed to download add_turboacc.sh, skipping."
+fi
 
 #更新软件包版本
 UPDATE_VERSION() {
