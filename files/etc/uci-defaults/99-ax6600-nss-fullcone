@@ -1,0 +1,14 @@
+#!/bin/sh
+# 关 Flow Offload，保 NSS + OAF
+uci set firewall.@defaults[0].flow_offloading='0'
+uci set firewall.@defaults[0].flow_offloading_hw='0'
+# 开全局 FullCone
+uci set firewall.@defaults[0].fullcone='1'
+uci commit firewall
+
+# BBR
+grep -q 'tcp_congestion_control=bbr' /etc/sysctl.conf || cat >> /etc/sysctl.conf << 'EOF'
+net.core.default_qdisc=fq
+net.ipv4.tcp_congestion_control=bbr
+EOF
+exit 0
