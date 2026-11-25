@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
 
-#安装和更新软件包
+# 安装和更新软件包
 UPDATE_PACKAGE() {
 	local PKG_NAME=$1
 	local PKG_REPO=$2
@@ -16,18 +16,16 @@ UPDATE_PACKAGE() {
 
 	# 删除本地可能存在的不同名称的软件包
 	for NAME in "${PKG_LIST[@]}"; do
-		# 查找匹配的目录
 		echo "Search directory: $NAME"
 		local FOUND_DIRS=$(find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
 
-		# 删除找到的目录
 		if [ -n "$FOUND_DIRS" ]; then
 			while read -r DIR; do
 				rm -rf "$DIR"
 				echo "Delete directory: $DIR"
 			done <<< "$FOUND_DIRS"
 		else
-			echo "Not fonud directory: $NAME"
+			echo "Not found directory: $NAME"
 		fi
 	done
 
@@ -41,7 +39,69 @@ UPDATE_PACKAGE() {
 	fi
 }
 
-# 调用示例
+# ============================================
+# 从 coolsnowwolf/luci 大仓中单独提取主题子目录
+# 用法: UPDATE_THEME_FROM_LUCI "主题名(不含luci-theme-前缀)" "分支名"
+# 示例: UPDATE_THEME_FROM_LUCI "design" "openwrt-25.12"
+# ============================================
+UPDATE_THEME_FROM_LUCI() {
+	local THEME_NAME=$1
+	local BRANCH=${2:-"openwrt-25.12"}
+	local FULL_NAME="luci-theme-${THEME_NAME}"
+	local TARGET_DIR="./package/${FULL_NAME}"
+	local TMP_DIR="./package/${FULL_NAME}.tmp"
+
+	echo " "
+	echo ">>> Extracting ${FULL_NAME} from coolsnowwolf/luci (${BRANCH})..."
+
+	# 清理旧文件
+	rm -rf "$TARGET_DIR" "$TMP_DIR"
+
+	# sparse-checkout 只拉取 themes 子目录
+	git clone --depth=1 --single-branch --branch "$BRANCH" \
+		--filter=blob:none --sparse \
+		https://github.com/coolsnowwolf/luci.git "$TMP_DIR"
+
+	if [ ! -d "$TMP_DIR" ]; then
+		echo ">>> ERROR: Failed to clone coolsnowwolf/luci"
+		return 1
+	fi
+
+	# 只 checkout 目标主题
+	pushd "$TMP_DIR" >/dev/null
+	git sparse-checkout set "themes/${FULL_NAME}"
+	popd >/dev/null
+
+	# 检查目标目录是否存在
+	if [ ! -d "$TMP_DIR/themes/${FULL_NAME}" ]; then
+		echo ">>> ERROR: themes/${FULL_NAME} not found in branch ${BRANCH}"
+		rm -rf "$TMP_DIR"
+		return 1
+	fi
+
+	# 拷贝到 package 目录
+	mkdir -p "$TARGET_DIR"
+	cp -rf "$TMP_DIR/themes/${FULL_NAME}/." "$TARGET_DIR/"
+
+	# 清理临时目录
+	rm -rf "$TMP_DIR"
+
+	# 删除 feeds 中的旧版本（避免冲突）
+	local FEEDS_FOUND=$(find ./feeds/luci/ -maxdepth 3 -type d -iname "*${FULL_NAME}*" 2>/dev/null)
+	if [ -n "$FEEDS_FOUND" ]; then
+		while read -r DIR; do
+			rm -rf "$DIR"
+			echo ">>> Removed feeds conflict: $DIR"
+		done <<< "$FEEDS_FOUND"
+	fi
+
+	echo ">>> ${FULL_NAME} extracted successfully to $TARGET_DIR"
+}
+
+# ============================================
+# 调用区
+# ============================================
+
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
 
@@ -100,7 +160,11 @@ UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
-# UPDATE_PACKAGE "design" "577090447/luci-theme-design" "openwrt-25.12"
+
+# ============================================
+# ★ 从 coolsnowwolf/luci 提取 luci-theme-design ★
+# ============================================
+UPDATE_THEME_FROM_LUCI "design" "openwrt-25.12"
 
 # ============================================
 # SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
@@ -121,7 +185,7 @@ else
     echo ">>> ERROR: Failed to download add_sonic_fullcone.sh, skipping."
 fi
 
-# 写入 .config 选项（确保编入，同时禁用 SFE/turboacc）
+# 写入 .config 选项
 echo " "
 echo ">>> Patching .config for SONiC FullCone..."
 for OPT in \
@@ -135,7 +199,7 @@ do
     fi
 done
 
-# 显式禁用 turboacc / SFE（防御性）
+# 显式禁用 turboacc / SFE
 for DISABLED in \
     "CONFIG_PACKAGE_luci-app-turboacc" \
     "CONFIG_PACKAGE_kmod-shortcut-fe" \
@@ -146,7 +210,7 @@ do
 done
 echo ">>> .config tuned (BBR=y, SFE/turboacc disabled)."
 
-#更新软件包版本
+# 更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
 	local PKG_MARK=${2:-false}
@@ -187,10 +251,10 @@ UPDATE_VERSION() {
 	done
 }
 
-#UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
-#UPDATE_VERSION "sing-box"
+# UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
+# UPDATE_VERSION "sing-box"
 
-#引入私有扩展脚本
+# 引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
