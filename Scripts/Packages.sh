@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
 
-# 安装和更新软件包
+#安装和更新软件包
 UPDATE_PACKAGE() {
 	local PKG_NAME=$1
 	local PKG_REPO=$2
@@ -16,16 +16,18 @@ UPDATE_PACKAGE() {
 
 	# 删除本地可能存在的不同名称的软件包
 	for NAME in "${PKG_LIST[@]}"; do
+		# 查找匹配的目录
 		echo "Search directory: $NAME"
 		local FOUND_DIRS=$(find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
 
+		# 删除找到的目录
 		if [ -n "$FOUND_DIRS" ]; then
 			while read -r DIR; do
 				rm -rf "$DIR"
 				echo "Delete directory: $DIR"
 			done <<< "$FOUND_DIRS"
 		else
-			echo "Not found directory: $NAME"
+			echo "Not fonud directory: $NAME"
 		fi
 	done
 
@@ -40,68 +42,45 @@ UPDATE_PACKAGE() {
 }
 
 # ============================================
-# 从 coolsnowwolf/luci 大仓中单独提取主题子目录
-# 用法: UPDATE_THEME_FROM_LUCI "主题名(不含luci-theme-前缀)" "分支名"
-# 示例: UPDATE_THEME_FROM_LUCI "design" "openwrt-25.12"
+# 从 coolsnowwolf/luci 提取 luci-theme-design
 # ============================================
-UPDATE_THEME_FROM_LUCI() {
-	local THEME_NAME=$1
-	local BRANCH=${2:-"openwrt-25.12"}
-	local FULL_NAME="luci-theme-${THEME_NAME}"
-	local TARGET_DIR="./package/${FULL_NAME}"
-	local TMP_DIR="./package/${FULL_NAME}.tmp"
+EXTRACT_DESIGN_THEME() {
+	local BRANCH="openwrt-25.12"
+	local TARGET="./package/luci-theme-design"
+	local TMP="./.luci_design_tmp"
 
 	echo " "
-	echo ">>> Extracting ${FULL_NAME} from coolsnowwolf/luci (${BRANCH})..."
+	echo ">>> Extracting luci-theme-design from coolsnowwolf/luci ($BRANCH)..."
 
 	# 清理旧文件
-	rm -rf "$TARGET_DIR" "$TMP_DIR"
+	rm -rf "$TARGET" "$TMP"
+	find ./feeds/luci/ -maxdepth 3 -type d -iname "*luci-theme-design*" -exec rm -rf {} + 2>/dev/null
 
-	# sparse-checkout 只拉取 themes 子目录
+	# 浅克隆
 	git clone --depth=1 --single-branch --branch "$BRANCH" \
-		--filter=blob:none --sparse \
-		https://github.com/coolsnowwolf/luci.git "$TMP_DIR"
+		https://github.com/coolsnowwolf/luci.git "$TMP"
 
-	if [ ! -d "$TMP_DIR" ]; then
-		echo ">>> ERROR: Failed to clone coolsnowwolf/luci"
+	if [ ! -d "$TMP/themes/luci-theme-design" ]; then
+		echo ">>> ERROR: luci-theme-design not found in branch $BRANCH!"
+		rm -rf "$TMP"
 		return 1
 	fi
 
-	# 只 checkout 目标主题
-	pushd "$TMP_DIR" >/dev/null
-	git sparse-checkout set "themes/${FULL_NAME}"
-	popd >/dev/null
-
-	# 检查目标目录是否存在
-	if [ ! -d "$TMP_DIR/themes/${FULL_NAME}" ]; then
-		echo ">>> ERROR: themes/${FULL_NAME} not found in branch ${BRANCH}"
-		rm -rf "$TMP_DIR"
-		return 1
-	fi
-
-	# 拷贝到 package 目录
-	mkdir -p "$TARGET_DIR"
-	cp -rf "$TMP_DIR/themes/${FULL_NAME}/." "$TARGET_DIR/"
+	# 拷贝主题文件
+	mkdir -p "$TARGET"
+	cp -rf "$TMP/themes/luci-theme-design/." "$TARGET/"
 
 	# 清理临时目录
-	rm -rf "$TMP_DIR"
+	rm -rf "$TMP"
 
-	# 删除 feeds 中的旧版本（避免冲突）
-	local FEEDS_FOUND=$(find ./feeds/luci/ -maxdepth 3 -type d -iname "*${FULL_NAME}*" 2>/dev/null)
-	if [ -n "$FEEDS_FOUND" ]; then
-		while read -r DIR; do
-			rm -rf "$DIR"
-			echo ">>> Removed feeds conflict: $DIR"
-		done <<< "$FEEDS_FOUND"
-	fi
+	# 刷新 feeds 索引，让构建系统识别新包（解决 dependency which does not exist）
+	./scripts/feeds update -a 2>/dev/null || true
+	./scripts/feeds install luci-theme-design 2>/dev/null || true
 
-	echo ">>> ${FULL_NAME} extracted successfully to $TARGET_DIR"
+	echo ">>> luci-theme-design extracted successfully to $TARGET"
 }
 
-# ============================================
-# 调用区
-# ============================================
-
+# 调用示例
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
 
@@ -161,10 +140,8 @@ UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
 
-# ============================================
-# ★ 从 coolsnowwolf/luci 提取 luci-theme-design ★
-# ============================================
-UPDATE_THEME_FROM_LUCI "design" "openwrt-25.12"
+# ★ 提取 coolsnowwolf/luci 的 design 主题（放在这里，其他主题之后）
+EXTRACT_DESIGN_THEME
 
 # ============================================
 # SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
@@ -185,7 +162,7 @@ else
     echo ">>> ERROR: Failed to download add_sonic_fullcone.sh, skipping."
 fi
 
-# 写入 .config 选项
+# 写入 .config 选项（确保编入，同时禁用 SFE/turboacc）
 echo " "
 echo ">>> Patching .config for SONiC FullCone..."
 for OPT in \
@@ -199,7 +176,7 @@ do
     fi
 done
 
-# 显式禁用 turboacc / SFE
+# 显式禁用 turboacc / SFE（防御性）
 for DISABLED in \
     "CONFIG_PACKAGE_luci-app-turboacc" \
     "CONFIG_PACKAGE_kmod-shortcut-fe" \
@@ -210,7 +187,7 @@ do
 done
 echo ">>> .config tuned (BBR=y, SFE/turboacc disabled)."
 
-# 更新软件包版本
+#更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
 	local PKG_MARK=${2:-false}
@@ -251,10 +228,10 @@ UPDATE_VERSION() {
 	done
 }
 
-# UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
-# UPDATE_VERSION "sing-box"
+#UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
+#UPDATE_VERSION "sing-box"
 
-# 引入私有扩展脚本
+#引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
