@@ -70,6 +70,7 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
+UPDATE_PACKAGE "luci-theme-design" "577090447/luci" "openwrt-25.12" "pkg"
 
 # ============================================
 # SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
