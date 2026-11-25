@@ -149,7 +149,7 @@ jobs:
             echo "ℹ️ 未检测到 files/，跳过"
           fi
 
-          for PKG in athena-led luci-app-athena-led; do
+          for PKG in athena-led luci-app-athena-led luci-theme-design; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
               rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
@@ -159,7 +159,6 @@ jobs:
             fi
           done
       # ========== 注入结束 ==========
-
       - name: Check Scripts
         run: |
           find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
