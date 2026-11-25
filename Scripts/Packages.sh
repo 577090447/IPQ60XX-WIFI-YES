@@ -16,18 +16,16 @@ UPDATE_PACKAGE() {
 
 	# 删除本地可能存在的不同名称的软件包
 	for NAME in "${PKG_LIST[@]}"; do
-		# 查找匹配的目录
 		echo "Search directory: $NAME"
 		local FOUND_DIRS=$(find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
 
-		# 删除找到的目录
 		if [ -n "$FOUND_DIRS" ]; then
 			while read -r DIR; do
 				rm -rf "$DIR"
 				echo "Delete directory: $DIR"
 			done <<< "$FOUND_DIRS"
 		else
-			echo "Not fonud directory: $NAME"
+			echo "Not found directory: $NAME"
 		fi
 	done
 
@@ -46,63 +44,32 @@ UPDATE_PACKAGE() {
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
 
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
-# UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
-UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
-# UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
-# UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
-# UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
-# UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
-# UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
-# UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
-UPDATE_PACKAGE "vantage" "anothaDev/luci-theme-vantage" "main"
 
-# UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
-# UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"
+# ==================== 主题 ====================
+# design 走本地注入（Inject Files 步骤），不在这里拉
+# aurora / vantage / carbon 已禁用，不拉
+
+# ==================== 科学插件 ====================
 UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
-# UPDATE_PACKAGE "passwall" "Openwrt-Passwall/openwrt-passwall" "main" "pkg"
-# UPDATE_PACKAGE "passwall2" "Openwrt-Passwall/openwrt-passwall2" "main" "pkg"
 
-# UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
-# UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
-# UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
+# ==================== 系统工具 ====================
 UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac miniupnpd sing-box luci-app-homeproxy luci-app-timewol luci-app-upnp luci-app-wolplus luci-app-wolultra"
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
-# UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
-# UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
-# UPDATE_PACKAGE "qbittorrent" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
-# UPDATE_PACKAGE "quickfile" "sbwml/luci-app-quickfile" "main"
-
-# UPDATE_PACKAGE "ddns-go" "sirpdboy/luci-app-ddns-go" "main"
-# UPDATE_PACKAGE "netspeedtest" "sirpdboy/netspeedtest" "main" "" "homebox ookla-speedtest"
 UPDATE_PACKAGE "netwizard" "sirpdboy/luci-app-netwizard" "main"
-# UPDATE_PACKAGE "partexp" "sirpdboy/luci-app-partexp" "main"
-# UPDATE_PACKAGE "timecontrol" "sirpdboy/luci-app-timecontrol" "main"
 
-# UPDATE_PACKAGE "natmapt" "muink/openwrt-natmapt" "master"
+# ==================== 网络工具 ====================
 UPDATE_PACKAGE "stuntman" "muink/openwrt-stuntman" "master"
-# UPDATE_PACKAGE "luci-app-natmapt" "muink/luci-app-natmapt" "master"
 
-# UPDATE_PACKAGE "airpi3000m-fancontrol" "LianXia233/luci-app-airpi3000m-fancontrol" "main"
-# UPDATE_PACKAGE "chfs" "LianXia233/luci-app-chfs" "main"
-# UPDATE_PACKAGE "fm350" "LianXia233/luci-app-fm350" "main"
-# UPDATE_PACKAGE "h5000m-netmode" "LianXia233/luci-app-h5000m-netmode" "main"
-# UPDATE_PACKAGE "mt5700" "LianXia233/luci-app-mt5700" "main"
-# UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
-# UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
-# UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
+# ==================== 过滤 ====================
 UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "open-app-filter luci-app-oaf oaf"
-# 文件管理：Harbor File（单包仓库，直接克隆）
+
+# ==================== 文件管理 ====================
 UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
-# 集客 AC 控制器
-# UPDATE_PACKAGE "gecoosac" "laipeng668/luci-app-gecoosac" "main" "" "gecoosac luci-app-gecoosac"
-# linkease + istore软件中心
+
+# ==================== 易有云 + iStore ====================
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
-UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
-
-# ★ 提取 coolsnowwolf/luci 的 design 主题（放在这里，其他主题之后）
-EXTRACT_DESIGN_THEME
 
 # ============================================
 # SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
@@ -127,7 +94,8 @@ fi
 echo " "
 echo ">>> Patching .config for SONiC FullCone..."
 for OPT in \
-    "CONFIG_PACKAGE_kmod-tcp-bbr=y"
+    "CONFIG_PACKAGE_kmod-tcp-bbr=y" \
+    "CONFIG_PACKAGE_fullconenat-sonic=y"
 do
     KEY=$(echo "$OPT" | cut -d= -f1)
     if grep -q "^# $KEY is not set" .config 2>/dev/null; then
