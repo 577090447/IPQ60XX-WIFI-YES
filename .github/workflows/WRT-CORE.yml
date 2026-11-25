@@ -138,7 +138,7 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-      # ========== 注入 files/ + 本地 package（athena-led + design） ==========
+      # ========== 注入 files/ + 本地 package（仅 athena-led） ==========
       - name: Inject Files & Local Packages
         run: |
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
@@ -149,7 +149,7 @@ jobs:
             echo "ℹ️ 未检测到 files/，跳过"
           fi
 
-          for PKG in athena-led luci-app-athena-led luci-theme-design; do
+          for PKG in athena-led luci-app-athena-led; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
               rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
@@ -197,11 +197,7 @@ jobs:
           cd ./wrt/
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          # 注入的本地包（design / athena）重新登记，否则 defconfig 识别不到
-          ./scripts/feeds install -p package luci-theme-design 2>/dev/null || \
-            ./scripts/feeds install luci-theme-design 2>/dev/null || true
-          echo "✅ feeds 已登记本地包："
-          ./scripts/feeds search luci-theme-design || true
+          echo "✅ feeds update done"
 
       - name: Custom Packages
         run: |
@@ -231,9 +227,8 @@ jobs:
             cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
           fi
 
-          # ===== 主题锁定（放在最后，覆盖任何前置同名项）=====
+          # 禁用不需要的主题，不再强制锁定design
           cat >> .config <<'EOF'
-          CONFIG_PACKAGE_luci-theme-design=y
           CONFIG_PACKAGE_luci-theme-bootstrap=y
           CONFIG_PACKAGE_luci-light=n
           CONFIG_PACKAGE_luci-theme-carbon=n
@@ -243,21 +238,12 @@ jobs:
           CONFIG_TARGET_PER_DEVICE_ROOTFS=n
           CONFIG_PACKAGE_kmod-nft-offload=n
           EOF
-          # 去掉可能残留的旧主题默认行（防御性）
+          # 去掉默认主题配置
           sed -i '/CONFIG_DEFAULT_PACKAGE_luci-theme/d' .config
-          echo 'CONFIG_DEFAULT_PACKAGE_luci-theme-design=y' >> .config
 
           $GITHUB_WORKSPACE/Scripts/Settings.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
           make defconfig -j$(nproc) && make clean -j$(nproc)
-
-          # ===== defconfig 后自检：design 必须存在 =====
-          if ! grep -q '^CONFIG_PACKAGE_luci-theme-design=y' .config; then
-            echo "❌ ERROR: luci-theme-design 未被选中，检查源码与依赖"
-            grep -i 'theme' .config || true
-            exit 1
-          fi
-          echo "✅ luci-theme-design 已选中"
 
       - name: Prepare Rust Toolchain
         if: ${{ !inputs.WRT_TEST }}
