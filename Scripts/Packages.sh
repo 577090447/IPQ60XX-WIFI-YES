@@ -100,7 +100,7 @@ UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 UPDATE_PACKAGE "luci-theme-carbon" "guangyin53222/luci-theme-carbon" "main"
-UPDATE_PACKAGE "design" "577090447/luci-theme-design" "openwrt-25.12"
+# UPDATE_PACKAGE "design" "577090447/luci-theme-design" "openwrt-25.12"
 
 # ============================================
 # SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
