@@ -46,8 +46,45 @@ UPDATE_PACKAGE() {
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
 
 # ==================== 主题 ====================
-# design 走本地注入（Inject Files 步骤），不在这里拉
 # aurora / vantage / carbon 已禁用，不拉
+#
+# design 不能用 UPDATE_PACKAGE 的 pkg 模式：
+#   pkg 模式只把 themes/luci-theme-design 单独拷到 ./package，
+#   而它的 Makefile 是 "include ../../luci.mk"，
+#   单目录搬出后 ../../ 指向 wrt 根（没有 luci.mk）→ 包注册不上 → apk 报 no such package。
+# 这里把 fork 的 luci.mk 一起拷进包目录，并改成同目录 include，自包含不依赖 feeds。
+install_design_theme() {
+	local SRC=./tmp-design-src
+	local DST=./package/luci-theme-design
+
+	rm -rf "$SRC" "$DST"
+
+	# 清掉 feeds 里可能存在的旧 design，避免同名冲突
+	find ./feeds/luci/ -maxdepth 3 -type d -iname "*luci-theme-design*" -exec rm -rf {} + 2>/dev/null
+
+	git clone --depth=1 --single-branch -b openwrt-25.12 \
+		https://github.com/577090447/luci.git "$SRC" || return 1
+
+	if [ ! -f "$SRC/luci.mk" ] || [ ! -f "$SRC/themes/luci-theme-design/Makefile" ]; then
+		echo ">>> ERROR: design 源不完整（缺 luci.mk 或 themes/luci-theme-design）"
+		rm -rf "$SRC"
+		return 1
+	fi
+
+	mkdir -p "$DST"
+	cp -rf "$SRC/themes/luci-theme-design/." "$DST/"
+	cp "$SRC/luci.mk" "$DST/luci.mk"
+	rm -rf "$SRC"
+
+	# 关键：../../luci.mk 断链 → 改为同目录的 luci.mk
+	sed -i 's|include ../../luci.mk|include ./luci.mk|' "$DST/Makefile"
+
+	echo ">>> design installed: $DST"
+	grep -n 'include' "$DST/Makefile"
+	grep -n 'PKG_VERSION\|PKG_RELEASE' "$DST/Makefile"
+	ls -la "$DST"
+}
+install_design_theme
 
 # ==================== 科学插件 ====================
 UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
@@ -70,7 +107,6 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
-UPDATE_PACKAGE "luci-theme-design" "577090447/luci" "openwrt-25.12" "pkg"
 
 # ============================================
 # SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
@@ -92,6 +128,8 @@ else
 fi
 
 # 写入 .config 选项（确保编入，同时禁用 SFE/turboacc）
+# 注意：这些选项建议同时写进 Config/GENERAL.txt，
+# 否则 Custom Settings 里的 make defconfig 可能把它们丢掉。
 echo " "
 echo ">>> Patching .config for SONiC FullCone..."
 for OPT in \
