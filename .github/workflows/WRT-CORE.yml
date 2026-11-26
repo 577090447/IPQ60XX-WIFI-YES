@@ -75,7 +75,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get -yqq purge firefox
+          sudo apt-get -yqq purge firefox || true
           sudo apt-get -yqq update
           sudo apt-get -yqq full-upgrade
           sudo apt-get -yqq autoremove --purge
@@ -138,9 +138,11 @@ jobs:
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
 
-      # ========== 注入 files/ + 本地 package（仅 athena-led） ==========
+      # ========== 注入 files/ + 本地 package（仅 athena-led；design 由 Packages.sh 拉取） ==========
       - name: Inject Files & Local Packages
         run: |
+          mkdir -p "$GITHUB_WORKSPACE/wrt"
+
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             mkdir -p "$GITHUB_WORKSPACE/wrt/files"
             rsync -a "$GITHUB_WORKSPACE/files/" "$GITHUB_WORKSPACE/wrt/files/"
@@ -208,6 +210,21 @@ jobs:
           # SONiC FullCone 注入后会新增包定义，必须再 install 一次
           ./scripts/feeds install -a
 
+      - name: Verify Design Theme Source
+        run: |
+          cd ./wrt/
+          D=package/luci-theme-design
+          for f in Makefile luci.mk htdocs root ucode; do
+            [ -e "$D/$f" ] || { echo "❌ 缺 $D/$f"; ls -la "$D" 2>/dev/null; exit 1; }
+          done
+          grep -q 'include ./luci.mk' "$D/Makefile" || {
+            echo "❌ design Makefile 的 include 不是 ./luci.mk，包会注册不上"
+            grep -n 'luci.mk' "$D/Makefile"
+            exit 1
+          }
+          echo "✅ design 源码就位"
+          grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$D/Makefile"
+
       - name: Verify No 952 / turboacc Leftovers
         run: |
           cd ./wrt/
@@ -227,10 +244,11 @@ jobs:
             cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
           fi
 
-          # 禁用不需要的主题，不再强制锁定design
+          # 主题锁定：design 为默认主题，bootstrap 保留（luci-light 依赖它）
           cat >> .config <<'EOF'
+          CONFIG_PACKAGE_luci-theme-design=y
+          CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
           CONFIG_PACKAGE_luci-theme-bootstrap=y
-          CONFIG_PACKAGE_luci-light=n
           CONFIG_PACKAGE_luci-theme-carbon=n
           CONFIG_PACKAGE_luci-theme-vantage=n
           CONFIG_PACKAGE_luci-theme-argon=n
@@ -238,12 +256,25 @@ jobs:
           CONFIG_TARGET_PER_DEVICE_ROOTFS=n
           CONFIG_PACKAGE_kmod-nft-offload=n
           EOF
-          # 去掉默认主题配置
-          sed -i '/CONFIG_DEFAULT_PACKAGE_luci-theme/d' .config
 
           $GITHUB_WORKSPACE/Scripts/Settings.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
+
+          # 关键：清理必须放在 Settings.sh 之后，否则会被脚本重新写回
+          sed -i '/CONFIG_DEFAULT_PACKAGE_luci-theme/d' .config
+          echo 'CONFIG_PACKAGE_luci-theme-design=y' >> .config
+          echo 'CONFIG_DEFAULT_PACKAGE_luci-theme-design=y' >> .config
+
           make defconfig -j$(nproc) && make clean -j$(nproc)
+
+          # defconfig 后自检：design 必须仍在，否则又会 no such package
+          grep -q '^CONFIG_PACKAGE_luci-theme-design=y' .config || {
+            echo "❌ ERROR: defconfig 后 design 被丢弃"
+            grep -i 'theme' .config
+            exit 1
+          }
+          echo "✅ design 已选中"
+          grep -i 'theme' .config | sort
 
       - name: Prepare Rust Toolchain
         if: ${{ !inputs.WRT_TEST }}
@@ -309,6 +340,15 @@ jobs:
             echo "❌ 无固件产物，跳过打包"
             exit 1
           fi
+
+          # design 必须真的进了镜像，避免又出现 no such package 后被静默吞掉
+          MANIFEST=$(find ./bin/targets -name '*.manifest' | head -1)
+          if [ -n "$MANIFEST" ] && ! grep -q '^luci-theme-design ' "$MANIFEST"; then
+            echo "❌ ERROR: 镜像清单里没有 luci-theme-design"
+            grep -i 'theme' "$MANIFEST"
+            exit 1
+          fi
+
           mkdir -p ./upload/
           cp -f ./.config ./upload/Config-"$WRT_CONFIG"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_DATE".txt
           echo "WRT_KVER=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)" >> $GITHUB_ENV
