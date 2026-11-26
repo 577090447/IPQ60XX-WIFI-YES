@@ -210,20 +210,30 @@ jobs:
           # SONiC FullCone 注入后会新增包定义，必须再 install 一次
           ./scripts/feeds install -a
 
-      - name: Verify Design Theme Source
+      - name: Verify LuCI Extras Source
         run: |
           cd ./wrt/
+          fail=0
+
+          # 主题 design
           D=package/luci-theme-design
           for f in Makefile luci.mk htdocs root ucode; do
-            [ -e "$D/$f" ] || { echo "❌ 缺 $D/$f"; ls -la "$D" 2>/dev/null; exit 1; }
+            [ -e "$D/$f" ] || { echo "❌ 缺 $D/$f"; fail=1; }
           done
-          grep -q 'include ./luci.mk' "$D/Makefile" || {
-            echo "❌ design Makefile 的 include 不是 ./luci.mk，包会注册不上"
-            grep -n 'luci.mk' "$D/Makefile"
-            exit 1
-          }
-          echo "✅ design 源码就位"
+          grep -q 'include ../../luci.mk' "$D/Makefile" 2>/dev/null && {
+            echo "❌ design Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
+
+          # 仪表盘（首页在线设备）
+          D2=package/luci-mod-dashboard
+          [ -f "$D2/Makefile" ] || { echo "❌ 缺 $D2/Makefile"; fail=1; }
+          grep -q 'include ../../luci.mk' "$D2/Makefile" 2>/dev/null && {
+            echo "❌ dashboard Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
+
+          [ "$fail" = 0 ] || { echo "--- 实际状态 ---"; ls -la package/ | head -30; exit 1; }
+
+          echo "✅ design + dashboard 源码就位"
           grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$D/Makefile"
+          grep -n 'include\|LUCI_DEPENDS' "$D2/Makefile"
 
       - name: Verify No 952 / turboacc Leftovers
         run: |
@@ -249,6 +259,7 @@ jobs:
           CONFIG_PACKAGE_luci-theme-design=y
           CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
           CONFIG_PACKAGE_luci-theme-bootstrap=y
+          CONFIG_PACKAGE_luci-mod-dashboard=y
           CONFIG_PACKAGE_luci-theme-carbon=n
           CONFIG_PACKAGE_luci-theme-vantage=n
           CONFIG_PACKAGE_luci-theme-argon=n
@@ -264,6 +275,7 @@ jobs:
           sed -i '/CONFIG_DEFAULT_PACKAGE_luci-theme/d' .config
           echo 'CONFIG_PACKAGE_luci-theme-design=y' >> .config
           echo 'CONFIG_DEFAULT_PACKAGE_luci-theme-design=y' >> .config
+          echo 'CONFIG_PACKAGE_luci-mod-dashboard=y' >> .config
 
           make defconfig -j$(nproc) && make clean -j$(nproc)
 
@@ -273,8 +285,13 @@ jobs:
             grep -i 'theme' .config
             exit 1
           }
-          echo "✅ design 已选中"
-          grep -i 'theme' .config | sort
+          grep -q '^CONFIG_PACKAGE_luci-mod-dashboard=y' .config || {
+            echo "❌ ERROR: defconfig 后 dashboard 被丢弃"
+            grep -i 'dashboard\|theme' .config
+            exit 1
+          }
+          echo "✅ design + dashboard 已选中"
+          grep -i 'theme\|dashboard' .config | sort
 
       - name: Prepare Rust Toolchain
         if: ${{ !inputs.WRT_TEST }}
@@ -348,11 +365,16 @@ jobs:
             grep -i 'theme' "$MANIFEST"
             exit 1
           fi
+          if [ -n "$MANIFEST" ] && ! grep -q '^luci-mod-dashboard ' "$MANIFEST"; then
+            echo "❌ ERROR: 镜像清单里没有 luci-mod-dashboard"
+            grep -i 'dashboard' "$MANIFEST"
+            exit 1
+          fi
 
           mkdir -p ./upload/
           cp -f ./.config ./upload/Config-"$WRT_CONFIG"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_DATE".txt
           echo "WRT_KVER=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)" >> $GITHUB_ENV
-          echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme|mod-dashboard)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
           find ./bin/targets/ -iregex ".*\(buildinfo\|json\|sha256sums\|packages\)$" -exec rm -rf {} +
           for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
             EXT=$(basename $FILE | cut -d '.' -f 2-)
