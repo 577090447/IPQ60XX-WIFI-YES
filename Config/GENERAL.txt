@@ -2,6 +2,10 @@
 CONFIG_PACKAGE_luci-theme-bootstrap=y
 CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
 CONFIG_PACKAGE_luci-theme-design=y
+# 首页仪表盘（Qwrt 风格在线设备），依赖 luci-base + libiwinfo 自动带入
+CONFIG_PACKAGE_luci-mod-dashboard=y
+# 状态模块，luci-light 自带；显式写死防止被别的裁剪规则带走
+CONFIG_PACKAGE_luci-mod-status=y
 
 # 新增 ttyd 终端支持
 CONFIG_PACKAGE_ttyd=y
