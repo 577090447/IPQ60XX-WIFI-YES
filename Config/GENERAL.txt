@@ -2,23 +2,6 @@
 CONFIG_PACKAGE_luci-theme-bootstrap=y
 CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
 CONFIG_PACKAGE_luci-theme-design=y
-# 彻底关闭 light（历史强依赖 design 导致 no such package 的根因）
-CONFIG_PACKAGE_luci-light=n
-# 关闭无源码/冲突的第三方主题（vantage 主题关，但保留其 app/i18n；carbon 全关）
-CONFIG_PACKAGE_luci-theme-vantage=n
-CONFIG_PACKAGE_luci-app-vantage=y
-CONFIG_PACKAGE_luci-i18n-vantage-zh-cn=y
-CONFIG_PACKAGE_luci-theme-carbon=n
-CONFIG_PACKAGE_luci-app-carbon=n
-# 显式屏蔽其他历史冗余主题
-CONFIG_PACKAGE_luci-theme-argon=n
-CONFIG_PACKAGE_luci-theme-footstrap=n
-CONFIG_PACKAGE_luci-theme-kucat=n
-CONFIG_PACKAGE_luci-theme-shadcn=n
-CONFIG_PACKAGE_luci-theme-fluent=n
-CONFIG_PACKAGE_OpenWrt-momo=n
-CONFIG_PACKAGE_momo=n
-CONFIG_PACKAGE_luci-app-momo=n
 
 # 新增 ttyd 终端支持
 CONFIG_PACKAGE_ttyd=y
