@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
-
 # 云编译公用核心
 name: WRT-CORE
-
 on:
   workflow_call:
     inputs:
@@ -44,7 +42,6 @@ on:
         required: false
         default: false
         type: boolean
-
 env:
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
   WRT_CONFIG: ${{inputs.WRT_CONFIG}}
@@ -59,7 +56,6 @@ env:
   WRT_SOURCE: ${{inputs.WRT_SOURCE}}
   WRT_PACKAGE: ${{inputs.WRT_PACKAGE}}
   WRT_TEST: ${{inputs.WRT_TEST}}
-
 jobs:
   core:
     name: ${{inputs.WRT_SOURCE}}
@@ -70,7 +66,6 @@ jobs:
     steps:
       - name: Checkout Projects
         uses: actions/checkout@main
-
       - name: Initialization Environment
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -81,7 +76,6 @@ jobs:
           sudo apt-get -yqq autoremove --purge
           sudo apt-get -yqq autoclean
           sudo apt-get -yqq clean
-
           sudo apt-get install -y --no-install-recommends \
             bc bison build-essential bzip2 ca-certificates ccache clang \
             cmake cpio curl device-tree-compiler dos2unix file flex \
@@ -90,13 +84,10 @@ jobs:
             llvm ninja-build patch perl pkgconf python3 python3-cryptography \
             python3-dev python3-packaging python3-pyelftools python3-setuptools qemu-utils rsync swig \
             unzip wget xz-utils zlib1g-dev zstd
-
           sudo timedatectl set-timezone "Asia/Shanghai"
-
           sudo mkdir -p /mnt/build_wrt
           sudo chown $USER:$USER /mnt/build_wrt
           sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
-
       - name: Initialization Values
         id: initialize-values
         run: |
@@ -107,7 +98,6 @@ jobs:
           WRT_CACHE_TARGET="$WRT_TARGET-$WRT_SUBTARGET"
           WRT_CACHE_PREFIX="wrt-$WRT_CACHE_SOURCE-$WRT_CACHE_BRANCH-$WRT_CACHE_TARGET"
           WRT_WIFI=$(grep -oE 'WIFI-(YES|NO)$' <<< "${WRT_CONFIG^^}" || true); WRT_WIFI=${WRT_WIFI:-none}
-
           {
             echo "WRT_INFO=${WRT_SOURCE%%/*}"
             echo "WRT_MARK=${GITHUB_REPOSITORY%%/*}"
@@ -121,28 +111,23 @@ jobs:
             echo "WRT_LIST=none"
           } >> "$GITHUB_ENV"
           echo "cache_prefix=$WRT_CACHE_PREFIX" >> "$GITHUB_OUTPUT"
-
       - name: Clone Code
         id: clone-code
         run: |
           git clone --depth=1 --single-branch --branch $WRT_BRANCH $WRT_REPO ./wrt/
-
           cd ./wrt/
           WRT_HASH=$(git rev-parse HEAD)
           echo "WRT_HASH=$WRT_HASH" >> $GITHUB_ENV
           echo "WRT_CACHE_KEY=$WRT_CACHE_PREFIX-$WRT_HASH" >> $GITHUB_ENV
           echo "cache_key=$WRT_CACHE_PREFIX-$WRT_HASH" >> "$GITHUB_OUTPUT"
-
           PROJECT_MIRRORS_FILE="./scripts/projectsmirrors.json"
           if [ -f "$PROJECT_MIRRORS_FILE" ]; then
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
-
-      # ========== 注入 files/ + 本地 package（仅 athena-led；design 由 Packages.sh 拉取） ==========
+      # ========== 注入 files/ + 本地 package（仅 athena‑led；design 由 Packages.sh 拉取） ==========
       - name: Inject Files & Local Packages
         run: |
           mkdir -p "$GITHUB_WORKSPACE/wrt"
-
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             mkdir -p "$GITHUB_WORKSPACE/wrt/files"
             rsync -a "$GITHUB_WORKSPACE/files/" "$GITHUB_WORKSPACE/wrt/files/"
@@ -150,7 +135,6 @@ jobs:
           else
             echo "ℹ️ 未检测到 files/，跳过"
           fi
-
           for PKG in athena-led luci-app-athena-led; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
@@ -167,11 +151,9 @@ jobs:
             fi
           done
       # ========== 注入结束 ==========
-
       - name: Check Scripts
         run: |
           find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
-
       - name: Restore Build Cache
         id: cache-restore
         if: ${{ !inputs.WRT_TEST }}
@@ -183,7 +165,6 @@ jobs:
             ./wrt/.ccache
             ./wrt/staging_dir/host*
             ./wrt/staging_dir/tool*
-
       - name: Prepare Restored Build Cache
         if: ${{ !inputs.WRT_TEST && steps.cache-restore.outputs.cache-matched-key != '' }}
         run: |
@@ -193,14 +174,12 @@ jobs:
           mkdir -p ./wrt/tmp
           echo "1" > ./wrt/tmp/.build
           echo "restored build cache: ${{steps.cache-restore.outputs.cache-matched-key}}"
-
       - name: Update Feeds
         run: |
           cd ./wrt/
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           echo "✅ feeds update done"
-
       - name: Custom Packages
         run: |
           cd ./wrt/
@@ -209,12 +188,10 @@ jobs:
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
           # SONiC FullCone 注入后会新增包定义，必须再 install 一次
           ./scripts/feeds install -a
-
       - name: Verify LuCI Extras Source
         run: |
           cd ./wrt/
           fail=0
-
           # 主题 design
           D=package/luci-theme-design
           for f in Makefile luci.mk htdocs root ucode; do
@@ -222,19 +199,22 @@ jobs:
           done
           grep -q 'include ../../luci.mk' "$D/Makefile" 2>/dev/null && {
             echo "❌ design Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
-
-          # 仪表盘（首页在线设备）
+          # 仪表盘 dashboard
           D2=package/luci-mod-dashboard
           [ -f "$D2/Makefile" ] || { echo "❌ 缺 $D2/Makefile"; fail=1; }
           grep -q 'include ../../luci.mk' "$D2/Makefile" 2>/dev/null && {
             echo "❌ dashboard Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
+          # luci‑mod‑rpc【新增校验】
+          D3=package/luci-mod-rpc
+          [ -f "$D3/Makefile" ] || { echo "❌ 缺 $D3/Makefile，在线主机列表会空白"; fail=1; }
+          grep -q 'include ../../luci.mk' "$D3/Makefile" 2>/dev/null && {
+            echo "❌ luci‑mod‑rpc Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
 
-          [ "$fail" = 0 ] || { echo "--- 实际状态 ---"; ls -la package/ | head -30; exit 1; }
-
-          echo "✅ design + dashboard 源码就位"
+          [ "$fail" = 0 ] || { echo "--- 实际目录状态 ---"; ls -la package/ | head -40; exit 1; }
+          echo "✅ design + dashboard + luci‑mod‑rpc 源码全部就位"
           grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$D/Makefile"
           grep -n 'include\|LUCI_DEPENDS' "$D2/Makefile"
-
+          grep -n 'include\|LUCI_DEPENDS' "$D3/Makefile"
       - name: Verify No 952 / turboacc Leftovers
         run: |
           cd ./wrt/
@@ -244,7 +224,6 @@ jobs:
             exit 1
           fi
           echo "✅ No 952 / turboacc leftovers found."
-
       - name: Custom Settings
         run: |
           cd ./wrt/
@@ -253,13 +232,13 @@ jobs:
           else
             cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
           fi
-
-          # 主题锁定：design 为默认主题，bootstrap 保留（luci-light 依赖它）
+          # 主题锁定：design 为默认主题，bootstrap 保留（luci‑light 依赖它）
           cat >> .config <<'EOF'
           CONFIG_PACKAGE_luci-theme-design=y
           CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
           CONFIG_PACKAGE_luci-theme-bootstrap=y
           CONFIG_PACKAGE_luci-mod-dashboard=y
+          CONFIG_PACKAGE_luci-mod-rpc=y
           CONFIG_PACKAGE_luci-theme-carbon=n
           CONFIG_PACKAGE_luci-theme-vantage=n
           CONFIG_PACKAGE_luci-theme-argon=n
@@ -267,19 +246,16 @@ jobs:
           CONFIG_TARGET_PER_DEVICE_ROOTFS=n
           CONFIG_PACKAGE_kmod-nft-offload=n
           EOF
-
           $GITHUB_WORKSPACE/Scripts/Settings.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
-
           # 关键：清理必须放在 Settings.sh 之后，否则会被脚本重新写回
           sed -i '/CONFIG_DEFAULT_PACKAGE_luci-theme/d' .config
           echo 'CONFIG_PACKAGE_luci-theme-design=y' >> .config
           echo 'CONFIG_DEFAULT_PACKAGE_luci-theme-design=y' >> .config
           echo 'CONFIG_PACKAGE_luci-mod-dashboard=y' >> .config
-
+          echo 'CONFIG_PACKAGE_luci-mod-rpc=y' >> .config
           make defconfig -j$(nproc) && make clean -j$(nproc)
-
-          # defconfig 后自检：design 必须仍在，否则又会 no such package
+          # defconfig 后自检
           grep -q '^CONFIG_PACKAGE_luci-theme-design=y' .config || {
             echo "❌ ERROR: defconfig 后 design 被丢弃"
             grep -i 'theme' .config
@@ -290,21 +266,23 @@ jobs:
             grep -i 'dashboard\|theme' .config
             exit 1
           }
-          echo "✅ design + dashboard 已选中"
-          grep -i 'theme\|dashboard' .config | sort
-
+          grep -q '^CONFIG_PACKAGE_luci-mod-rpc=y' .config || {
+            echo "❌ ERROR: defconfig 后 luci‑mod‑rpc 被丢弃，在线主机会空白"
+            grep -i 'rpc' .config
+            exit 1
+          }
+          echo "✅ design + dashboard + luci‑mod‑rpc 已选中"
+          grep -i 'theme\|dashboard\|rpc' .config | sort
       - name: Prepare Rust Toolchain
         if: ${{ !inputs.WRT_TEST }}
         run: |
           cd ./wrt/
           $GITHUB_WORKSPACE/.github/scripts/prepare-rust.sh
-
       - name: Download Packages
         if: ${{ !inputs.WRT_TEST }}
         run: |
           cd ./wrt/
           make download -j$(nproc)
-
       - name: Compile Firmware
         if: ${{ !inputs.WRT_TEST }}
         run: |
@@ -312,14 +290,12 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/build-reports
           make -j$(nproc) BUILD_TIME_LOG="$GITHUB_WORKSPACE/build-reports/parallel.tsv" || \
             make -j1 V=s BUILD_TIME_LOG="$GITHUB_WORKSPACE/build-reports/serial.tsv"
-
       - name: Collect Build Reports
         if: ${{ !inputs.WRT_TEST && always() }}
         continue-on-error: true
         run: |
           cd ./wrt/
           $GITHUB_WORKSPACE/.github/scripts/collect-build-reports.sh
-
       - name: Upload Build Reports
         if: ${{ !inputs.WRT_TEST && always() }}
         continue-on-error: true
@@ -328,7 +304,6 @@ jobs:
           name: build-reports-${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{github.run_attempt}}
           path: ./build-reports/
           retention-days: 7
-
       - name: Save Build Cache
         if: ${{ !inputs.WRT_TEST && success() && steps.cache-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@main
@@ -338,7 +313,6 @@ jobs:
             ./wrt/.ccache
             ./wrt/staging_dir/host*
             ./wrt/staging_dir/tool*
-
       - name: Machine Information
         run: |
           cd ./wrt/
@@ -349,7 +323,6 @@ jobs:
           echo "======================="
           du -h --max-depth=1
           echo "======================="
-
       - name: Package Firmware
         run: |
           cd ./wrt/
@@ -357,24 +330,16 @@ jobs:
             echo "❌ 无固件产物，跳过打包"
             exit 1
           fi
-
-          # design 必须真的进了镜像，避免又出现 no such package 后被静默吞掉
           MANIFEST=$(find ./bin/targets -name '*.manifest' | head -1)
-          if [ -n "$MANIFEST" ] && ! grep -q '^luci-theme-design ' "$MANIFEST"; then
-            echo "❌ ERROR: 镜像清单里没有 luci-theme-design"
-            grep -i 'theme' "$MANIFEST"
-            exit 1
+          if [ -n "$MANIFEST" ]; then
+            if ! grep -q '^luci-theme-design ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑theme‑design"; exit 1; fi
+            if ! grep -q '^luci-mod-dashboard ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑mod‑dashboard"; exit 1; fi
+            if ! grep -q '^luci-mod-rpc ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑mod‑rpc，在线主机将会空白"; exit 1; fi
           fi
-          if [ -n "$MANIFEST" ] && ! grep -q '^luci-mod-dashboard ' "$MANIFEST"; then
-            echo "❌ ERROR: 镜像清单里没有 luci-mod-dashboard"
-            grep -i 'dashboard' "$MANIFEST"
-            exit 1
-          fi
-
           mkdir -p ./upload/
           cp -f ./.config ./upload/Config-"$WRT_CONFIG"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_DATE".txt
           echo "WRT_KVER=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)" >> $GITHUB_ENV
-          echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme|mod-dashboard)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme|mod)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
           find ./bin/targets/ -iregex ".*\(buildinfo\|json\|sha256sums\|packages\)$" -exec rm -rf {} +
           for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
             EXT=$(basename $FILE | cut -d '.' -f 2-)
@@ -384,7 +349,6 @@ jobs:
           done
           find ./bin/targets/ -type f -exec mv -f {} ./upload/ \;
           make clean -j$(nproc)
-
       - name: Release Firmware
         uses: softprops/action-gh-release@master
         with:
@@ -394,25 +358,18 @@ jobs:
             这是个平台固件包，内含多个设备！
             请注意选择你需要的设备固件！
             不要问，刷就完事了！
-
             全系带开源硬件加速（NSS + SONiC FullCone），别问了！
-
             源码：${{env.WRT_REPO}}
             分支：${{env.WRT_BRANCH}}
             提交：${{env.WRT_HASH}}
-
             配置：${{env.WRT_CONFIG}}
             平台：${{env.WRT_TARGET}}
-
             登录地址：${{env.WRT_IP}}
             登录密码：${{env.WRT_PW}}
-
             WIFI名称：${{env.WRT_SSID}}
             WIFI密码：${{env.WRT_WORD}}
-
             内核版本：${{env.WRT_KVER}}
             插件列表：${{env.WRT_LIST}}
-
   cache-rollover:
     name: Roll cache generations
     needs: core
