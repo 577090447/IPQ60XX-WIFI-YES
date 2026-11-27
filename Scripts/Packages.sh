@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 VIKINGYFY
-#安装和更新软件包
+# 安装和更新软件包
 UPDATE_PACKAGE() {
 	local PKG_NAME=$1
 	local PKG_REPO=$2
@@ -53,49 +53,40 @@ UPDATE_PACKAGE "luci-app-harbor-file" "destan19/luci-app-harbor-file" "main"
 UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
+
 # ============================================
-# SONiC FullCone NAT（替代 turboacc，无 SFE / 无 952 补丁）
-# 适配 fw4(nftables) + 内核 6.6/6.12/6.18
+# 彻底清理 Turbo ACC / SFE（源码 + 补丁）
+# 不写任何禁用项，仅保留 SONiC 勾选
 # ============================================
-echo " "
-echo ">>> Cleaning old turboacc / 952 leftovers..."
-find target/linux/generic/hack-6.18* -name "952-*" -delete 2>/dev/null
-find target/linux/generic -name "*.rej" -delete 2>/dev/null
+echo ">>> Cleaning Turbo ACC / SFE sources and patches..."
+find ./feeds/luci/ ./feeds/packages/ ./package/ -type d \( \
+    -iname "*turboacc*" -o -iname "*turbo-acc*" \
+    -o -iname "*shortcut-fe*" -o -iname "*fast-classifier*" \
+    -o -iname "*flowoffload*" \
+) -exec rm -rf {} + 2>/dev/null || true
+
+# 连补丁也删除（952系列及.rej）
+find ./target/linux/generic/ -type f \( -name "952-*" -o -name "*.rej" \) -delete 2>/dev/null || true
+
+# ==================== SONiC FullCone NAT（替代 turboacc） ====================
 echo ">>> Adding SONiC FullCone..."
 curl -sSL https://raw.githubusercontent.com/mufeng05/openwrt-sonic-fullcone/master/add_sonic_fullcone.sh -o ./add_sonic_fullcone.sh
 if [ -f ./add_sonic_fullcone.sh ]; then
     bash ./add_sonic_fullcone.sh
     rm -f ./add_sonic_fullcone.sh
-    echo ">>> SONiC FullCone patches applied successfully."
-else
-    echo ">>> ERROR: Failed to download add_sonic_fullcone.sh, skipping."
 fi
-# 写入 .config 选项（确保编入，同时禁用 SFE/turboacc）
-# 注意：这些选项建议同时写进 Config/GENERAL.txt，
-# 否则 Custom Settings 里的 make defconfig 可能把它们丢掉。
-echo " "
-echo ">>> Patching .config for SONiC FullCone..."
+
+# 只保留勾选的（仅写入 =y，不写任何禁用项）
 for OPT in \
     "CONFIG_PACKAGE_kmod-tcp-bbr=y" \
     "CONFIG_PACKAGE_fullconenat-sonic=y"
 do
-    KEY=$(echo "$OPT" | cut -d= -f1)
-    if grep -q "^# $KEY is not set" .config 2>/dev/null; then
-        sed -i "s|^# $KEY is not set|$OPT|" .config
-    elif ! grep -q "^$KEY=" .config 2>/dev/null; then
-        echo "$OPT" >> .config
-    fi
+    KEY=${OPT%%=*}
+    sed -i "/^${KEY}=/d" .config 2>/dev/null
+    sed -i "/^# ${KEY} is not set/d" .config 2>/dev/null
+    echo "$OPT" >> .config
 done
-# 显式禁用 turboacc / SFE（防御性）
-for DISABLED in \
-    "CONFIG_PACKAGE_luci-app-turboacc" \
-    "CONFIG_PACKAGE_kmod-shortcut-fe" \
-    "CONFIG_PACKAGE_kmod-fast-classifier"
-do
-    sed -i "/^${DISABLED}=/d" .config 2>/dev/null
-    echo "# ${DISABLED} is not set" >> .config
-done
-echo ">>> .config tuned (BBR=y, SFE/turboacc disabled)."
+
 #更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
@@ -130,6 +121,7 @@ UPDATE_VERSION() {
 }
 #UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
 #UPDATE_VERSION "sing-box"
+
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
