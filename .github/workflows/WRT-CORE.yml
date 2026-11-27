@@ -124,7 +124,7 @@ jobs:
           if [ -f "$PROJECT_MIRRORS_FILE" ]; then
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
-      # ========== 注入 files/ + 本地 package（仅 athena‑led；design 由 Packages.sh 拉取） ==========
+      # ========== 注入 files/ + 本地package：athena-led + luci-theme-design ==========
       - name: Inject Files & Local Packages
         run: |
           mkdir -p "$GITHUB_WORKSPACE/wrt"
@@ -135,12 +135,12 @@ jobs:
           else
             echo "ℹ️ 未检测到 files/，跳过"
           fi
-          for PKG in athena-led luci-app-athena-led; do
+          # 需要注入的本地包列表
+          for PKG in athena-led luci-app-athena-led luci-theme-design; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
               rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
               echo "✅ 本地包注入: $PKG"
-              # 校验 Makefile 存在，避免空目录导致 no such package
               if [ ! -f "$GITHUB_WORKSPACE/wrt/package/$PKG/Makefile" ]; then
                 echo "❌ ERROR: $PKG 缺 Makefile，源码不完整！"
                 ls -la "$GITHUB_WORKSPACE/wrt/package/$PKG"
@@ -186,35 +186,18 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Packages.sh
           $GITHUB_WORKSPACE/Scripts/Handles.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
-          # SONiC FullCone 注入后会新增包定义，必须再 install 一次
           ./scripts/feeds install -a
-      - name: Verify LuCI Extras Source
+      - name: Verify LuCI Theme Source
         run: |
           cd ./wrt/
           fail=0
-          # 主题 design
           D=package/luci-theme-design
-          for f in Makefile luci.mk htdocs root ucode; do
-            [ -e "$D/$f" ] || { echo "❌ 缺 $D/$f"; fail=1; }
-          done
+          [ -f "$D/Makefile" ] || { echo "❌ 缺 $D/Makefile"; fail=1; }
           grep -q 'include ../../luci.mk' "$D/Makefile" 2>/dev/null && {
             echo "❌ design Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
-          # 仪表盘 dashboard
-          D2=package/luci-mod-dashboard
-          [ -f "$D2/Makefile" ] || { echo "❌ 缺 $D2/Makefile"; fail=1; }
-          grep -q 'include ../../luci.mk' "$D2/Makefile" 2>/dev/null && {
-            echo "❌ dashboard Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
-          # luci‑mod‑rpc【新增校验】
-          D3=package/luci-mod-rpc
-          [ -f "$D3/Makefile" ] || { echo "❌ 缺 $D3/Makefile，在线主机列表会空白"; fail=1; }
-          grep -q 'include ../../luci.mk' "$D3/Makefile" 2>/dev/null && {
-            echo "❌ luci‑mod‑rpc Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
-
           [ "$fail" = 0 ] || { echo "--- 实际目录状态 ---"; ls -la package/ | head -40; exit 1; }
-          echo "✅ design + dashboard + luci‑mod‑rpc 源码全部就位"
+          echo "✅ luci-theme-design 源码就位"
           grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$D/Makefile"
-          grep -n 'include\|LUCI_DEPENDS' "$D2/Makefile"
-          grep -n 'include\|LUCI_DEPENDS' "$D3/Makefile"
       - name: Verify No 952 / turboacc Leftovers
         run: |
           cd ./wrt/
@@ -232,13 +215,11 @@ jobs:
           else
             cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
           fi
-          # 主题锁定：design 为默认主题，bootstrap 保留（luci‑light 依赖它）
+          # 仅 design主题，去掉 dashboard、rpc
           cat >> .config <<'EOF'
           CONFIG_PACKAGE_luci-theme-design=y
           CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
           CONFIG_PACKAGE_luci-theme-bootstrap=y
-          CONFIG_PACKAGE_luci-mod-dashboard=y
-          CONFIG_PACKAGE_luci-mod-rpc=y
           CONFIG_PACKAGE_luci-theme-carbon=n
           CONFIG_PACKAGE_luci-theme-vantage=n
           CONFIG_PACKAGE_luci-theme-argon=n
@@ -248,31 +229,18 @@ jobs:
           EOF
           $GITHUB_WORKSPACE/Scripts/Settings.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
-          # 关键：清理必须放在 Settings.sh 之后，否则会被脚本重新写回
           sed -i '/CONFIG_DEFAULT_PACKAGE_luci-theme/d' .config
           echo 'CONFIG_PACKAGE_luci-theme-design=y' >> .config
           echo 'CONFIG_DEFAULT_PACKAGE_luci-theme-design=y' >> .config
-          echo 'CONFIG_PACKAGE_luci-mod-dashboard=y' >> .config
-          echo 'CONFIG_PACKAGE_luci-mod-rpc=y' >> .config
           make defconfig -j$(nproc) && make clean -j$(nproc)
-          # defconfig 后自检
+          # defconfig自检只校验design主题
           grep -q '^CONFIG_PACKAGE_luci-theme-design=y' .config || {
             echo "❌ ERROR: defconfig 后 design 被丢弃"
             grep -i 'theme' .config
             exit 1
           }
-          grep -q '^CONFIG_PACKAGE_luci-mod-dashboard=y' .config || {
-            echo "❌ ERROR: defconfig 后 dashboard 被丢弃"
-            grep -i 'dashboard\|theme' .config
-            exit 1
-          }
-          grep -q '^CONFIG_PACKAGE_luci-mod-rpc=y' .config || {
-            echo "❌ ERROR: defconfig 后 luci‑mod‑rpc 被丢弃，在线主机会空白"
-            grep -i 'rpc' .config
-            exit 1
-          }
-          echo "✅ design + dashboard + luci‑mod‑rpc 已选中"
-          grep -i 'theme\|dashboard\|rpc' .config | sort
+          echo "✅ luci-theme-design 已选中"
+          grep -i 'theme' .config | sort
       - name: Prepare Rust Toolchain
         if: ${{ !inputs.WRT_TEST }}
         run: |
@@ -333,8 +301,6 @@ jobs:
           MANIFEST=$(find ./bin/targets -name '*.manifest' | head -1)
           if [ -n "$MANIFEST" ]; then
             if ! grep -q '^luci-theme-design ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑theme‑design"; exit 1; fi
-            if ! grep -q '^luci-mod-dashboard ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑mod‑dashboard"; exit 1; fi
-            if ! grep -q '^luci-mod-rpc ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑mod‑rpc，在线主机将会空白"; exit 1; fi
           fi
           mkdir -p ./upload/
           cp -f ./.config ./upload/Config-"$WRT_CONFIG"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_DATE".txt
