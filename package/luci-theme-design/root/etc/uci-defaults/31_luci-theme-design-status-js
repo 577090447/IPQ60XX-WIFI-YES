@@ -1,0 +1,21 @@
+#!/bin/sh
+# 把 design 版 status js 覆盖到 luci-mod-status 的路径
+# 编译进固件时：postinst 不会执行，靠本脚本首次开机生效
+# 后装 apk 时：postinst 已即时覆盖，这里幂等兜底
+# 执行成功后自删
+
+OV="/www/luci-static/design/override/status"
+DST="/www/luci-static/resources/view/status/include"
+
+[ -d "$OV" ] || exit 0
+
+mkdir -p "$DST" 2>/dev/null || exit 0
+
+for f in 30_network.js 40_dhcp.js; do
+	[ -f "$OV/$f" ] && cp -f "$OV/$f" "$DST/$f"
+done
+
+rm -f /tmp/luci-indexcache.* 2>/dev/null
+rm -rf /tmp/luci-modulecache 2>/dev/null
+
+exit 0
