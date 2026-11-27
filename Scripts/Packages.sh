@@ -36,68 +36,7 @@ UPDATE_PACKAGE() {
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf"
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
-# ==================== LuCI 主题 + 仪表盘 ====================
-# aurora / vantage / carbon 已禁用，不拉
-#
-# 为什么不用 UPDATE_PACKAGE 的 pkg 模式：
-#   pkg 模式只做单目录搬运，而这三个包的 Makefile 都是 "include ../../luci.mk"，
-#   单目录搬出后 ../../ 指向 wrt 根（没有 luci.mk）→ 包注册不上 → apk 报 no such package。
-# 做法：一次 clone，把包目录 + 仓库自带的 luci.mk 一起拷进包目录，
-#      Makefile 改成同目录 include，自包含、不依赖 feeds 里 luci.mk 的版本。
-install_luci_extras() {
-	local SRC=./tmp-luci-src
-	local LUCI_REPO=https://github.com/577090447/luci.git
-	local LUCI_BRANCH=openwrt-25.12
-	local DST
-	rm -rf "$SRC"
-	# 清掉 feeds 里可能存在的旧版本，避免同名冲突
-	find ./feeds/luci -maxdepth 3 -type d \
-		\( -name 'luci-theme-design' -o -name 'luci-mod-dashboard' -o -name 'luci-mod-rpc' \) \
-		-exec rm -rf {} + 2>/dev/null
-	git clone --depth=1 --single-branch -b "$LUCI_BRANCH" "$LUCI_REPO" "$SRC" || return 1
-	[ -f "$SRC/luci.mk" ] || { echo ">>> ERROR: 缺 luci.mk"; rm -rf "$SRC"; return 1; }
-	# ---------- 主题 design ----------
-	DST=./package/luci-theme-design
-	if [ -f "$SRC/themes/luci-theme-design/Makefile" ]; then
-		rm -rf "$DST"; mkdir -p "$DST"
-		cp -rf "$SRC/themes/luci-theme-design/." "$DST/"
-		cp "$SRC/luci.mk" "$DST/luci.mk"
-		sed -i 's|include ../../luci.mk|include ./luci.mk|' "$DST/Makefile"
-		echo ">>> theme installed: $DST"
-		grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$DST/Makefile"
-	else
-		echo ">>> ERROR: 缺 themes/luci-theme-design"
-		rm -rf "$SRC"
-		return 1
-	fi
-	# ---------- 仪表盘（首页在线设备） ----------
-	DST=./package/luci-mod-dashboard
-	if [ -f "$SRC/modules/luci-mod-dashboard/Makefile" ]; then
-		rm -rf "$DST"; mkdir -p "$DST"
-		cp -rf "$SRC/modules/luci-mod-dashboard/." "$DST/"
-		cp "$SRC/luci.mk" "$DST/luci.mk"
-		sed -i 's|include ../../luci.mk|include ./luci.mk|' "$DST/Makefile"
-		echo ">>> dashboard installed: $DST"
-		grep -n 'include\|LUCI_DEPENDS' "$DST/Makefile"
-	else
-		echo ">>> WARN: 缺 modules/luci-mod-dashboard，跳过仪表盘"
-	fi
-	# ---------- luci-mod-rpc 仪表盘数据源接口（在线主机+实时流量依赖） ----------
-	DST=./package/luci-mod-rpc
-	if [ -f "$SRC/modules/luci-mod-rpc/Makefile" ]; then
-		rm -rf "$DST"; mkdir -p "$DST"
-		cp -rf "$SRC/modules/luci-mod-rpc/." "$DST/"
-		cp "$SRC/luci.mk" "$DST/luci.mk"
-		sed -i 's|include ../../luci.mk|include ./luci.mk|' "$DST/Makefile"
-		echo ">>> luci-mod-rpc installed: $DST"
-		grep -n 'include\|LUCI_DEPENDS' "$DST/Makefile"
-	else
-		echo ">>> WARN: 缺 modules/luci-mod-rpc，仪表盘在线主机将会空白！"
-	fi
 
-	rm -rf "$SRC"
-}
-install_luci_extras
 # ==================== 科学插件 ====================
 UPDATE_PACKAGE "openclash" "vernesong/OpenClash" "dev" "pkg"
 # ==================== 系统工具 ====================
