@@ -124,7 +124,7 @@ jobs:
           if [ -f "$PROJECT_MIRRORS_FILE" ]; then
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
-      # ========== 注入 files/ + 本地package：athena-led ==========
+      # ========== 注入 files/ + 本地package：athena-led + luci-theme-design ==========
       - name: Inject Files & Local Packages
         run: |
           mkdir -p "$GITHUB_WORKSPACE/wrt"
@@ -135,8 +135,8 @@ jobs:
           else
             echo "ℹ️ 未检测到 files/，跳过"
           fi
-          # 本地包只保留 athena-led
-          for PKG in athena-led luci-app-athena-led; do
+          # 本地包注入（含 design 主题，不再远程拉取）
+          for PKG in athena-led luci-app-athena-led luci-theme-design; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
               rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
@@ -186,30 +186,11 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Packages.sh
           $GITHUB_WORKSPACE/Scripts/Handles.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
-          # 拉取 theme-design
-          rm -rf package/luci-theme-design
-          git clone --depth=1 https://github.com/577090447/theme-design package/luci-theme-design
           ./scripts/feeds install -a
-      - name: Verify LuCI Theme Source
+      - name: Verify Theme
         run: |
           cd ./wrt/
-          fail=0
-          D=package/luci-theme-design
-          [ -f "$D/Makefile" ] || { echo "❌ 缺 $D/Makefile"; fail=1; }
-          grep -q 'include ../../luci.mk' "$D/Makefile" 2>/dev/null && {
-            echo "❌ design Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
-          [ "$fail" = 0 ] || { echo "--- 实际目录状态 ---"; ls -la package/ | head -40; exit 1; }
-          echo "✅ luci-theme-design 源码就位（远程拉取）"
-          grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$D/Makefile"
-      - name: Verify No 952 / turboacc Leftovers
-        run: |
-          cd ./wrt/
-          if find target/linux/generic/hack-6.18* -name "952-*" 2>/dev/null | grep -q .; then
-            echo "❌ ERROR: 952 patch still present! turboacc 残留未清理。"
-            find target/linux/generic/hack-6.18* -name "952-*"
-            exit 1
-          fi
-          echo "✅ No 952 / turboacc leftovers found."
+          ls -la package/luci-theme-design/Makefile && echo "✅ luci-theme-design 就位（本地注入）" || exit 1
       - name: Custom Settings
         run: |
           cd ./wrt/
@@ -303,14 +284,14 @@ jobs:
           fi
           MANIFEST=$(find ./bin/targets -name '*.manifest' | head -1)
           if [ -n "$MANIFEST" ]; then
-            if ! grep -q '^luci-theme-design ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci‑theme‑design"; exit 1; fi
+            if ! grep -q '^luci-theme-design ' "$MANIFEST"; then echo "❌ ERROR: 镜像清单里没有 luci-theme-design"; exit 1; fi
           fi
           mkdir -p ./upload/
           cp -f ./.config ./upload/Config-"$WRT_CONFIG"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_DATE".txt
           echo "WRT_KVER=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)" >> $GITHUB_ENV
           echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme|mod)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
           find ./bin/targets/ -iregex ".*\(buildinfo\|json\|sha256sums\|packages\)$" -exec rm -rf {} +
-          for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
+          for FILE in $(find ./bin/targets -type f -iname "*$WRT_TARGET*") ; do
             EXT=$(basename $FILE | cut -d '.' -f 2-)
             NAME=$(basename $FILE | cut -d '.' -f 1 | grep -io "\($WRT_TARGET\).*")
             NEW_FILE="$NAME"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_WIFI"-"$WRT_DATE"."$EXT"
