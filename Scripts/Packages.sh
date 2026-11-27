@@ -54,38 +54,7 @@ UPDATE_PACKAGE "linkease" "linkease/nas-packages" "master"
 UPDATE_PACKAGE "luci-app-linkease" "linkease/nas-packages-luci" "main"
 UPDATE_PACKAGE "luci-app-store" "linkease/istore" "main"
 
-# ============================================
-# 彻底清理 Turbo ACC / SFE（源码 + 补丁）
-# 不写任何禁用项，仅保留 SONiC 勾选
-# ============================================
-echo ">>> Cleaning Turbo ACC / SFE sources and patches..."
-find ./feeds/luci/ ./feeds/packages/ ./package/ -type d \( \
-    -iname "*turboacc*" -o -iname "*turbo-acc*" \
-    -o -iname "*shortcut-fe*" -o -iname "*fast-classifier*" \
-    -o -iname "*flowoffload*" \
-) -exec rm -rf {} + 2>/dev/null || true
 
-# 连补丁也删除（952系列及.rej）
-find ./target/linux/generic/ -type f \( -name "952-*" -o -name "*.rej" \) -delete 2>/dev/null || true
-
-# ==================== SONiC FullCone NAT（替代 turboacc） ====================
-echo ">>> Adding SONiC FullCone..."
-curl -sSL https://raw.githubusercontent.com/mufeng05/openwrt-sonic-fullcone/master/add_sonic_fullcone.sh -o ./add_sonic_fullcone.sh
-if [ -f ./add_sonic_fullcone.sh ]; then
-    bash ./add_sonic_fullcone.sh
-    rm -f ./add_sonic_fullcone.sh
-fi
-
-# 只保留勾选的（仅写入 =y，不写任何禁用项）
-for OPT in \
-    "CONFIG_PACKAGE_kmod-tcp-bbr=y" \
-    "CONFIG_PACKAGE_fullconenat-sonic=y"
-do
-    KEY=${OPT%%=*}
-    sed -i "/^${KEY}=/d" .config 2>/dev/null
-    sed -i "/^# ${KEY} is not set/d" .config 2>/dev/null
-    echo "$OPT" >> .config
-done
 
 #更新软件包版本
 UPDATE_VERSION() {
