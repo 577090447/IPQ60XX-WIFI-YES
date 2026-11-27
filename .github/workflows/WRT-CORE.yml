@@ -135,7 +135,6 @@ jobs:
           else
             echo "ℹ️ 未检测到 files/，跳过"
           fi
-          # 本地包注入（含 design 主题，不再远程拉取）
           for PKG in athena-led luci-app-athena-led luci-theme-design; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
@@ -216,7 +215,6 @@ jobs:
           echo 'CONFIG_PACKAGE_luci-theme-design=y' >> .config
           echo 'CONFIG_DEFAULT_PACKAGE_luci-theme-design=y' >> .config
           make defconfig -j$(nproc) && make clean -j$(nproc)
-          # defconfig自检只校验design主题
           grep -q '^CONFIG_PACKAGE_luci-theme-design=y' .config || {
             echo "❌ ERROR: defconfig 后 design 被丢弃"
             grep -i 'theme' .config
@@ -307,6 +305,7 @@ jobs:
             这是个平台固件包，内含多个设备！
             请注意选择你需要的设备固件！
             不要问，刷就完事了！
+            全系带开源硬件加速（NSS + SONiC FullCone），别问了！
             源码：${{env.WRT_REPO}}
             分支：${{env.WRT_BRANCH}}
             提交：${{env.WRT_HASH}}
