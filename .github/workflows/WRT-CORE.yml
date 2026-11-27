@@ -209,7 +209,6 @@ jobs:
           CONFIG_PACKAGE_luci-theme-argon=n
           CONFIG_PACKAGE_luci-theme-aurora=n
           CONFIG_TARGET_PER_DEVICE_ROOTFS=n
-          CONFIG_PACKAGE_kmod-nft-offload=n
           EOF
           $GITHUB_WORKSPACE/Scripts/Settings.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-build-host.sh
@@ -308,7 +307,6 @@ jobs:
             这是个平台固件包，内含多个设备！
             请注意选择你需要的设备固件！
             不要问，刷就完事了！
-            全系带开源硬件加速（NSS + SONiC FullCone），别问了！
             源码：${{env.WRT_REPO}}
             分支：${{env.WRT_BRANCH}}
             提交：${{env.WRT_HASH}}
