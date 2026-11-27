@@ -124,7 +124,7 @@ jobs:
           if [ -f "$PROJECT_MIRRORS_FILE" ]; then
             sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
           fi
-      # ========== 注入 files/ + 本地package：athena-led + luci-theme-design ==========
+      # ========== 注入 files/ + 本地package：athena-led ==========
       - name: Inject Files & Local Packages
         run: |
           mkdir -p "$GITHUB_WORKSPACE/wrt"
@@ -135,8 +135,8 @@ jobs:
           else
             echo "ℹ️ 未检测到 files/，跳过"
           fi
-          # 需要注入的本地包列表
-          for PKG in athena-led luci-app-athena-led luci-theme-design; do
+          # 本地包只保留 athena-led
+          for PKG in athena-led luci-app-athena-led; do
             if [ -d "$GITHUB_WORKSPACE/package/$PKG" ]; then
               mkdir -p "$GITHUB_WORKSPACE/wrt/package/$PKG"
               rsync -a --delete "$GITHUB_WORKSPACE/package/$PKG/" "$GITHUB_WORKSPACE/wrt/package/$PKG/"
@@ -186,6 +186,9 @@ jobs:
           $GITHUB_WORKSPACE/Scripts/Packages.sh
           $GITHUB_WORKSPACE/Scripts/Handles.sh
           $GITHUB_WORKSPACE/.github/scripts/prepare-i2c-tools.sh
+          # 拉取 theme-design
+          rm -rf package/luci-theme-design
+          git clone --depth=1 https://github.com/577090447/theme-design package/luci-theme-design
           ./scripts/feeds install -a
       - name: Verify LuCI Theme Source
         run: |
@@ -196,7 +199,7 @@ jobs:
           grep -q 'include ../../luci.mk' "$D/Makefile" 2>/dev/null && {
             echo "❌ design Makefile 还是 ../../luci.mk，包会注册不上"; fail=1; }
           [ "$fail" = 0 ] || { echo "--- 实际目录状态 ---"; ls -la package/ | head -40; exit 1; }
-          echo "✅ luci-theme-design 源码就位"
+          echo "✅ luci-theme-design 源码就位（远程拉取）"
           grep -n 'include\|PKG_VERSION\|PKG_RELEASE' "$D/Makefile"
       - name: Verify No 952 / turboacc Leftovers
         run: |
@@ -215,7 +218,7 @@ jobs:
           else
             cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
           fi
-          # 仅 design主题，去掉 dashboard、rpc
+          # 仅 design主题，无 dashboard、rpc
           cat >> .config <<'EOF'
           CONFIG_PACKAGE_luci-theme-design=y
           CONFIG_DEFAULT_PACKAGE_luci-theme-design=y
