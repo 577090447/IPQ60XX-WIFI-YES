@@ -33,6 +33,7 @@ CONFIG_PACKAGE_luci-app-ksmbd=y
 CONFIG_PACKAGE_kmod-fs-ksmbd=y
 
 # ==================== IPTV流 rtp2httpd ====================
+CONFIG_PACKAGE_rtp2httpd
 CONFIG_PACKAGE_luci-app-rtp2httpd=y
 CONFIG_PACKAGE_luci-i18n-rtp2httpd-zh-cn=y
 
